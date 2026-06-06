@@ -10,5 +10,5 @@ PATH="$ROOT/scripts/cross-tools:$PATH" RUSTFLAGS="${RUSTFLAGS:-} -C target-featu
 
 mkdir -p "$OUT"
 cp src-tauri/target/x86_64-pc-windows-msvc/release/codex-usage-tray.exe "$OUT/"
-cp packaging/windows/Install-CodexUsageTray.cmd packaging/windows/Install-CodexUsageTray.ps1 packaging/windows/README.txt "$OUT/"
+cp packaging/windows/codex-usage-tray.exe.manifest packaging/windows/Install-CodexUsageTray.cmd packaging/windows/Install-CodexUsageTray.ps1 packaging/windows/README.txt "$OUT/"
 printf 'Windows portable executable copied to %s\n' "$OUT"

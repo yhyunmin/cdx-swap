@@ -13,7 +13,7 @@ try {
   New-Item -ItemType Directory -Force -Path $DesktopOut | Out-Null
   Get-ChildItem -Path "src-tauri\target\release\bundle" -Recurse -Include *.msi,*.exe |
     Copy-Item -Destination $DesktopOut -Force
-  Copy-Item -Path "packaging\windows\Install-CodexUsageTray.cmd", "packaging\windows\Install-CodexUsageTray.ps1", "packaging\windows\README.txt" -Destination $DesktopOut -Force
+  Copy-Item -Path "packaging\windows\codex-usage-tray.exe.manifest", "packaging\windows\Install-CodexUsageTray.cmd", "packaging\windows\Install-CodexUsageTray.ps1", "packaging\windows\README.txt" -Destination $DesktopOut -Force
 
   Write-Host "Windows installers copied to $DesktopOut"
 }

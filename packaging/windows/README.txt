@@ -13,3 +13,4 @@ It also creates a Start Menu shortcut named "Codex Usage Tray" and launches the 
 
 Portable run:
 Double-click codex-usage-tray.exe.
+Keep codex-usage-tray.exe.manifest next to the exe.

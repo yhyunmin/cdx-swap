@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $SourceExe = Join-Path $PSScriptRoot "codex-usage-tray.exe"
+$SourceManifest = Join-Path $PSScriptRoot "codex-usage-tray.exe.manifest"
 if (-not (Test-Path $SourceExe)) {
   throw "codex-usage-tray.exe was not found next to this installer script."
 }
@@ -12,6 +13,9 @@ $ShortcutPath = Join-Path $ShortcutDir "Codex Usage Tray.lnk"
 
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 Copy-Item -Path $SourceExe -Destination (Join-Path $InstallDir "codex-usage-tray.exe") -Force
+if (Test-Path $SourceManifest) {
+  Copy-Item -Path $SourceManifest -Destination (Join-Path $InstallDir "codex-usage-tray.exe.manifest") -Force
+}
 
 $Shell = New-Object -ComObject WScript.Shell
 $Shortcut = $Shell.CreateShortcut($ShortcutPath)
