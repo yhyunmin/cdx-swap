@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Minimal preprocessor shim for Linux-hosted cargo-xwin builds in environments
+# without LLVM's clang-cl. Tauri's resource build only needs a preprocessed RC
+# stream before llvm-rc runs; our llvm-rc shim emits an empty COFF archive.
+exit 0

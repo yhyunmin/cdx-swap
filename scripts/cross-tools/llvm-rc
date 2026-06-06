@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+set -eu
+
+out=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    /fo)
+      shift
+      out="${1:-}"
+      ;;
+  esac
+  shift || true
+done
+
+if [ -z "$out" ]; then
+  echo "llvm-rc shim: missing /fo output" >&2
+  exit 1
+fi
+
+if command -v llvm-ar >/dev/null 2>&1; then
+  ar_cmd="llvm-ar"
+else
+  sysroot="$(rustc --print sysroot)"
+  host="$(rustc -vV | sed -n 's/^host: //p')"
+  ar_cmd="$sysroot/lib/rustlib/$host/bin/llvm-ar"
+fi
+
+"$ar_cmd" crs "$out"

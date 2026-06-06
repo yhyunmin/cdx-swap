@@ -1,0 +1,10 @@
+{
+  "repo": "https://github.com/ezpzai/cdx",
+  "baseRef": "v1.0.10",
+  "policy": "manual-sync",
+  "notes": [
+    "The GUI owns the Rust profile and usage core.",
+    "Upstream cdx is checked for release drift and synced manually after review.",
+    "The app does not require the cdx CLI binary at runtime."
+  ]
+}
