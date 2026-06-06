@@ -1,17 +1,33 @@
 import { invoke } from "@tauri-apps/api/core";
-import { defaultConfig } from "./app-model";
-import type { ActionKind, ActionSession, AppConfig, ProfileRecord, ProfileUsage, SwitchResult, UpstreamStatus } from "../types/domain";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { defaultConfig, normalizeConfig } from "./app-model";
+import type {
+  ActionKind,
+  ActionSession,
+  AppConfig,
+  ProfileRecord,
+  ProfileUsage,
+  SwitchResult,
+  TrayActionPayload,
+  TrayMenuState,
+  UpstreamStatus,
+} from "../types/domain";
 
 interface NativeApi {
   getConfig(): Promise<AppConfig>;
   saveConfig(config: AppConfig): Promise<AppConfig>;
   listProfileUsage(): Promise<ProfileUsage[]>;
   ensureProfile(profileId: string): Promise<ProfileRecord>;
-  startActionSession(kind: ActionKind, profileId: string): Promise<ActionSession>;
+  startActionSession(kind: ActionKind, profileId: string, config: AppConfig): Promise<ActionSession>;
   sendActionInput(sessionId: string, input: string): Promise<void>;
   getActionSession(sessionId: string): Promise<ActionSession | null>;
   switchProfile(profileId: string, config: AppConfig): Promise<SwitchResult>;
   setTrayTooltip(label: string): Promise<void>;
+  updateTrayMenuState(menuState: TrayMenuState): Promise<void>;
+  onTrayAction(handler: (payload: TrayActionPayload) => void): Promise<UnlistenFn>;
+  startWindowDrag(): Promise<void>;
+  hideWindow(): Promise<void>;
   checkCdxUpstream(): Promise<UpstreamStatus>;
 }
 
@@ -28,10 +44,10 @@ export const isBrowserPreview = !isTauriRuntime();
 
 const browserApi: NativeApi = {
   async getConfig() {
-    return JSON.parse(localStorage.getItem("codex-usage-tray-config") ?? "null") ?? defaultConfig;
+    return normalizeConfig(JSON.parse(localStorage.getItem("cdx-swap-config") ?? "null") ?? defaultConfig);
   },
   async saveConfig(config) {
-    localStorage.setItem("codex-usage-tray-config", JSON.stringify(config));
+    localStorage.setItem("cdx-swap-config", JSON.stringify(config));
     return config;
   },
   async listProfileUsage() {
@@ -61,6 +77,12 @@ const browserApi: NativeApi = {
     return { activeProfileId: profileId, desktopRestarted: false, message: `${profileId} 선택됨` };
   },
   async setTrayTooltip() {},
+  async updateTrayMenuState() {},
+  async onTrayAction() {
+    return () => {};
+  },
+  async startWindowDrag() {},
+  async hideWindow() {},
   async checkCdxUpstream() {
     return { repo: "https://github.com/ezpzai/cdx", baseRef: "v1.0.10", latestRef: null, updateAvailable: false, error: null };
   },
@@ -71,11 +93,15 @@ const tauriApi: NativeApi = {
   saveConfig: (config) => invoke("save_app_config", { config }),
   listProfileUsage: () => invoke("list_profile_usage"),
   ensureProfile: (profileId) => invoke("ensure_profile", { profileId }),
-  startActionSession: (kind, profileId) => invoke("start_action_session", { kind, profileId }),
+  startActionSession: (kind, profileId, config) => invoke("start_action_session", { kind, profileId, config }),
   sendActionInput: (sessionId, input) => invoke("send_action_input", { sessionId, input }),
   getActionSession: (sessionId) => invoke("get_action_session", { sessionId }),
   switchProfile: (profileId, config) => invoke("switch_profile", { profileId, config }),
   setTrayTooltip: (label) => invoke("set_tray_tooltip", { label }),
+  updateTrayMenuState: (menuState) => invoke("update_tray_menu_state", { menuState }),
+  onTrayAction: (handler) => listen<TrayActionPayload>("tray-action", (event) => handler(event.payload)),
+  startWindowDrag: () => getCurrentWindow().startDragging(),
+  hideWindow: () => getCurrentWindow().hide(),
   checkCdxUpstream: () => invoke("check_cdx_upstream"),
 };
 

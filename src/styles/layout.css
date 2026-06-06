@@ -19,8 +19,26 @@ input {
 .tray-shell {
   width: 420px;
   min-height: 560px;
-  padding: var(--space-4);
+  padding: var(--space-2) var(--space-4) var(--space-4);
   background: var(--color-bg);
+}
+
+.drag-bar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  min-height: 28px;
+  color: var(--color-muted);
+  cursor: grab;
+  user-select: none;
+}
+
+.drag-bar:active {
+  cursor: grabbing;
+}
+
+.drag-bar svg:first-child {
+  justify-self: center;
 }
 
 .topbar,

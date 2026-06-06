@@ -1,10 +1,11 @@
 use crate::{
-    domain::{ActionKind, ActionSession, ActionStatus},
+    domain::{ActionKind, ActionSession, ActionStatus, AppConfig},
     profiles::{ensure_profile, resolve_profile},
 };
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, Write},
+    path::PathBuf,
     process::{ChildStdin, Command, Stdio},
     sync::{Arc, Mutex},
     thread,
@@ -37,6 +38,36 @@ fn now_label() -> String {
 
 fn session_id(kind: ActionKind, profile_id: &str) -> String {
     format!("{kind:?}-{profile_id}-{}", now_label())
+}
+
+fn resolve_codex_cli_path(config: &AppConfig) -> PathBuf {
+    if !config.codex_cli_path.trim().is_empty() {
+        return PathBuf::from(config.codex_cli_path.trim());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+            let candidate = PathBuf::from(local_app_data)
+                .join("Programs")
+                .join("OpenAI")
+                .join("Codex")
+                .join("bin")
+                .join("codex.exe");
+            if candidate.exists() {
+                return candidate;
+            }
+        }
+
+        let administrator_candidate = PathBuf::from(
+            r"C:\Users\Administrator\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe",
+        );
+        if administrator_candidate.exists() {
+            return administrator_candidate;
+        }
+    }
+
+    PathBuf::from("codex")
 }
 
 fn trim_output(mut lines: Vec<String>) -> Vec<String> {
@@ -104,6 +135,7 @@ pub fn start_action_session(
     store: State<ActionStore>,
     kind: ActionKind,
     profile_id: String,
+    config: AppConfig,
 ) -> Result<ActionSession, String> {
     let profile = match kind {
         ActionKind::Login => ensure_profile(profile_id.clone())?,
@@ -136,7 +168,8 @@ pub fn start_action_session(
         ActionKind::Run => None,
         ActionKind::Logout => Some("logout"),
     };
-    let mut command = Command::new("codex");
+    let codex_path = resolve_codex_cli_path(&config);
+    let mut command = Command::new(&codex_path);
     if let Some(arg) = command_arg {
         command.arg(arg);
     }
@@ -145,6 +178,7 @@ pub fn start_action_session(
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    hide_console_window(&mut command);
 
     let mut child = match command.spawn() {
         Ok(child) => child,
@@ -153,7 +187,7 @@ pub fn start_action_session(
                 session.status = ActionStatus::Failed;
                 session.exit_code = Some(1);
                 session.finished_at = Some(now_label());
-                session.message = format!("Failed to run codex: {error}");
+                session.message = format!("Failed to run {}: {error}", codex_path.display());
                 session.recent_output = vec![session.message.clone()];
             });
             let sessions = store
@@ -217,6 +251,17 @@ pub fn start_action_session(
 
     Ok(session)
 }
+
+#[cfg(target_os = "windows")]
+fn hide_console_window(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn hide_console_window(_command: &mut Command) {}
 
 #[tauri::command]
 pub fn send_action_input(

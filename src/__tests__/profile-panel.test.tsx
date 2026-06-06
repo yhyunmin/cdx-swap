@@ -9,6 +9,7 @@ describe("ProfilePanel", () => {
       <ProfilePanel
         profiles={[{ profileId: "main", account: "main@example.com", plan: null, fiveHourLeft: 50, fiveHourReset: null, weeklyLeft: 60, weeklyReset: null, error: null }]}
         activeProfileId="main"
+        maskEmails={false}
         loading={false}
         newProfileId="work"
         onNewProfileIdChange={vi.fn()}
@@ -27,6 +28,7 @@ describe("ProfilePanel", () => {
       <ProfilePanel
         profiles={[]}
         activeProfileId={null}
+        maskEmails={false}
         loading={false}
         newProfileId="work"
         onNewProfileIdChange={vi.fn()}

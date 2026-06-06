@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Codex Usage Tray",
+  "productName": "cdx-swap",
   "version": "0.1.0",
-  "identifier": "dev.codex-usage-tray.app",
+  "identifier": "dev.yhyunmin.cdx-swap",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Codex Usage Tray",
+        "title": "cdx-swap",
         "width": 420,
         "height": 560,
         "resizable": false,
@@ -29,7 +29,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "nsis"],
+    "targets": ["nsis"],
     "category": "DeveloperTool",
     "shortDescription": "Codex profile usage tray app",
     "longDescription": "Windows-first tray app for viewing Codex usage and safely restarting Codex Desktop."

@@ -13,7 +13,7 @@ struct GithubRelease {
 pub async fn check_cdx_upstream() -> Result<UpstreamStatus, String> {
     let result = reqwest::Client::new()
         .get("https://api.github.com/repos/ezpzai/cdx/releases/latest")
-        .header("User-Agent", "codex-usage-tray")
+        .header("User-Agent", "cdx-swap")
         .send()
         .await;
 

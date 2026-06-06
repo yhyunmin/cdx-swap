@@ -2,7 +2,7 @@ use crate::domain::{ProfileRecord, ProfileUsage};
 use serde::Deserialize;
 
 const CODEX_USAGE_URL: &str = "https://chatgpt.com/backend-api/wham/usage";
-const USER_AGENT: &str = "codex_cli_rs/0.76.0 (Windows; x86_64) CodexUsageTray/0.1.0";
+const USER_AGENT: &str = "codex_cli_rs/0.76.0 (Windows; x86_64) cdx-swap/0.1.0";
 
 #[derive(Deserialize)]
 struct UsageResponse {

@@ -12,7 +12,7 @@ use config::{get_app_config, save_app_config};
 use desktop::restart_codex_desktop;
 use domain::{AppConfig, SwitchResult};
 use profiles::{ensure_profile, list_profile_usage};
-use tray::{set_tray_tooltip, setup_tray};
+use tray::{set_tray_tooltip, setup_tray, update_tray_menu_state, TrayStore};
 use upstream::check_cdx_upstream;
 
 #[tauri::command]
@@ -38,6 +38,7 @@ fn switch_profile(profile_id: String, config: AppConfig) -> Result<SwitchResult,
 pub fn run() {
     let result = tauri::Builder::default()
         .manage(ActionStore::default())
+        .manage(TrayStore::default())
         .setup(|app| {
             setup_tray(app.handle())?;
             Ok(())
@@ -52,11 +53,12 @@ pub fn run() {
             get_action_session,
             switch_profile,
             set_tray_tooltip,
+            update_tray_menu_state,
             check_cdx_upstream
         ])
         .run(tauri::generate_context!());
 
     if let Err(error) = result {
-        eprintln!("error while running Codex Usage Tray: {error}");
+        eprintln!("error while running cdx-swap: {error}");
     }
 }

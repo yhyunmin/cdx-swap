@@ -3,11 +3,17 @@ export type ActionStatus = "starting" | "running" | "succeeded" | "failed";
 
 export interface AppConfig {
   activeProfileId: string | null;
+  codexCliPath: string;
   codexDesktopPath: string;
   refreshIntervalSeconds: number;
   confirmBeforeSwitch: boolean;
   restartDesktopOnSwitch: boolean;
   autostart: boolean;
+  maskEmails: boolean;
+  showSessionLogs: boolean;
+  claudeEnabled: boolean;
+  claudeCliPath: string;
+  hiddenProfileIds: string[];
 }
 
 export interface ProfileUsage {
@@ -58,4 +64,20 @@ export interface UpstreamStatus {
   latestRef: string | null;
   updateAvailable: boolean;
   error: string | null;
+}
+
+export interface TrayProfile {
+  profileId: string;
+  fiveHourLeft: number | null;
+  weeklyLeft: number | null;
+}
+
+export interface TrayMenuState {
+  activeProfileId: string | null;
+  profiles: TrayProfile[];
+}
+
+export interface TrayActionPayload {
+  action: "open" | "settings" | "refresh" | "switchProfile";
+  profileId: string | null;
 }

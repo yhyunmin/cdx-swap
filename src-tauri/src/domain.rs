@@ -1,27 +1,70 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct AppConfig {
     pub active_profile_id: Option<String>,
+    pub codex_cli_path: String,
     pub codex_desktop_path: String,
     pub refresh_interval_seconds: u64,
     pub confirm_before_switch: bool,
     pub restart_desktop_on_switch: bool,
     pub autostart: bool,
+    pub mask_emails: bool,
+    pub show_session_logs: bool,
+    pub claude_enabled: bool,
+    pub claude_cli_path: String,
+    pub hidden_profile_ids: Vec<String>,
 }
 
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
             active_profile_id: None,
+            codex_cli_path: String::new(),
             codex_desktop_path: String::new(),
             refresh_interval_seconds: 60,
             confirm_before_switch: true,
             restart_desktop_on_switch: false,
             autostart: false,
+            mask_emails: true,
+            show_session_logs: false,
+            claude_enabled: false,
+            claude_cli_path: String::new(),
+            hidden_profile_ids: Vec::new(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrayProfile {
+    pub profile_id: String,
+    pub five_hour_left: Option<u8>,
+    pub weekly_left: Option<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrayMenuState {
+    pub active_profile_id: Option<String>,
+    pub profiles: Vec<TrayProfile>,
+}
+
+impl Default for TrayMenuState {
+    fn default() -> Self {
+        Self {
+            active_profile_id: None,
+            profiles: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrayActionPayload {
+    pub action: String,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

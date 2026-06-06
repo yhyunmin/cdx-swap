@@ -1,13 +1,21 @@
-# Codex Usage Tray
+# cdx-swap
 
-Windows-first tray app for Codex profile usage, profile login/run/logout sessions, and safe Codex Desktop restarts.
+Windows-first Tauri tray app for Codex profile usage, profile login/run/logout sessions, and optional Codex Desktop safe restart.
+
+## Features
+
+- Native Windows tray context menu with active profile 5H/Week status.
+- React dashboard panel opened from tray menu near the cursor.
+- Codex profile login, run, and logout sessions without opening an external terminal window on Windows.
+- Profile usage table with email masking and per-profile hide controls.
+- Settings for Codex CLI path override, Codex Desktop path, refresh interval, autostart, session logs, and a v1 Claude provider config slot.
 
 ## Requirements
 
 - Node.js 20+
 - Rust toolchain for Tauri builds
-- OpenAI `codex` CLI installed and available in `PATH` for profile login/run/logout actions
-- Windows for the first production target
+- Windows for production packaging
+- Codex CLI installed. The app auto-detects the default OpenAI Codex install path on Windows and falls back to `PATH`; Settings can override the path.
 
 ## Development
 
@@ -20,33 +28,26 @@ npm run tauri:dev
 
 ## Windows packaging
 
-```bash
-npm run build
-npm run tauri:build
-```
+Official release artifacts are produced by GitHub Actions on `v*` tags:
 
-On Windows, this command builds and copies the installers to the Desktop:
+- `cdx-swap_<version>_x64-setup.exe`
+- `cdx-swap_<version>_x64-portable.zip`
+
+Local Windows build:
 
 ```powershell
 npm run windows:package
 ```
 
-From this Linux workspace, a Windows x64 GUI executable plus installer helper scripts can be generated with:
+Linux cross-build is dev-only and copies a portable executable to `Desktop/cdx-swap`:
 
 ```bash
 ./scripts/package-windows-cross.sh
 ```
 
-The cross package is written to `Desktop/CodexUsageTray`. To install on Windows, copy that folder to a Windows machine and double-click `Install-CodexUsageTray.cmd`. The installer copies the executable to `%LOCALAPPDATA%\Programs\CodexUsageTray`, creates a Start Menu shortcut, and launches the app.
-
-The first packaged release should generate platform icons from `src-tauri/icons/icon.svg` with Tauri's icon tooling before publishing installers.
-
-Linux cross-checking Windows Tauri builds requires the Windows resource compiler (`x86_64-w64-mingw32-windres`) and the usual Tauri Linux prerequisites. The repository CI runs the native Windows check on `windows-latest`.
-
 ## Scope
 
 - Codex usage/profile discovery is owned by the Rust core in this app.
-- The app does not require the `cdx` CLI binary at runtime.
-- `ezpzai/cdx` upstream is tracked in `vendor/cdx-upstream.json` and synced manually after review.
 - Codex Desktop auth/state files are never modified.
+- Auth tokens are used only inside the Rust backend and are not serialized to the frontend, config, or localStorage.
 - Claude and other providers are extension slots only in v0.1.

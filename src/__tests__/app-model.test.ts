@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeProfile, defaultConfig, trayLabel } from "../lib/app-model";
+import { activeProfile, defaultConfig, displayAccount, isProfileHidden, toggleHiddenProfile, trayLabel, trayMenuState } from "../lib/app-model";
 import type { ProfileUsage } from "../types/domain";
 
 const profiles: ProfileUsage[] = [
@@ -17,7 +17,28 @@ describe("app model", () => {
   });
 
   it("formats the tray label from the active 5h usage", () => {
-    expect(trayLabel(profiles[0])).toBe("Codex 35%");
-    expect(trayLabel(null)).toBe("Codex --%");
+    expect(trayLabel(profiles[0])).toBe("cdx-swap 35%");
+    expect(trayLabel(null)).toBe("cdx-swap --%");
+  });
+
+  it("builds the native tray menu state from profile usage", () => {
+    expect(trayMenuState({ ...defaultConfig, activeProfileId: "work" }, profiles)).toEqual({
+      activeProfileId: "work",
+      profiles: [
+        { profileId: "main", fiveHourLeft: 35, weeklyLeft: 61 },
+        { profileId: "work", fiveHourLeft: 70, weeklyLeft: 81 },
+      ],
+    });
+  });
+
+  it("tracks hidden profiles without changing other config", () => {
+    const hidden = toggleHiddenProfile(defaultConfig, "main");
+    expect(isProfileHidden(hidden, "main")).toBe(true);
+    expect(isProfileHidden(toggleHiddenProfile(hidden, "main"), "main")).toBe(false);
+  });
+
+  it("masks emails when privacy mode is enabled", () => {
+    expect(displayAccount("main@example.com", true)).toBe("ma****@example.com");
+    expect(displayAccount("main@example.com", false)).toBe("main@example.com");
   });
 });

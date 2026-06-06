@@ -2,7 +2,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
-$DesktopOut = Join-Path ([Environment]::GetFolderPath("Desktop")) "CodexUsageTray"
+$DesktopOut = Join-Path ([Environment]::GetFolderPath("Desktop")) "cdx-swap"
 
 Push-Location $Root
 try {
@@ -11,11 +11,9 @@ try {
   npm run tauri:build
 
   New-Item -ItemType Directory -Force -Path $DesktopOut | Out-Null
-  Get-ChildItem -Path "src-tauri\target\release\bundle" -Recurse -Include *.msi,*.exe |
+  Get-ChildItem -Path "src-tauri\target\release\bundle\nsis" -Recurse -Include *.exe |
     Copy-Item -Destination $DesktopOut -Force
-  Copy-Item -Path "packaging\windows\codex-usage-tray.exe.manifest", "packaging\windows\Install-CodexUsageTray.cmd", "packaging\windows\Install-CodexUsageTray.ps1", "packaging\windows\README.txt" -Destination $DesktopOut -Force
-
-  Write-Host "Windows installers copied to $DesktopOut"
+  Write-Host "Windows NSIS installer copied to $DesktopOut"
 }
 finally {
   Pop-Location

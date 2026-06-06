@@ -43,7 +43,7 @@ pub fn save_app_config(app: AppHandle, mut config: AppConfig) -> Result<AppConfi
 fn configure_autostart(_app: &AppHandle, enabled: bool) -> Result<(), String> {
     use std::process::Command;
 
-    const AUTOSTART_NAME: &str = "CodexUsageTray";
+    const AUTOSTART_NAME: &str = "cdx-swap";
     let key = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
     let mut command = Command::new("reg");
     if enabled {
