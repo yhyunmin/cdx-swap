@@ -31,6 +31,7 @@ pub struct AuthSummary {
     pub plan: Option<String>,
     pub organization: Option<String>,
     pub account_id: Option<String>,
+    #[serde(skip_serializing)]
     pub access_token: Option<String>,
     pub last_refresh: Option<String>,
 }

@@ -30,7 +30,6 @@ export interface ProfileRecord {
     plan: string | null;
     organization: string | null;
     accountId: string | null;
-    accessToken: string | null;
     lastRefresh: string | null;
   } | null;
 }
