@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { useCallback } from "react";
 import { PanelChrome } from "../components/PanelChrome";
 import { ProfilePanel } from "../components/ProfilePanel";
 import { SessionPanel } from "../components/SessionPanel";
@@ -9,6 +10,53 @@ import { isBrowserPreview } from "../lib/native";
 import type { AppController } from "../hooks/useAppController";
 
 export function TrayPanel(controller: AppController) {
+  const handleRefresh = useCallback(() => {
+    void controller.refreshUsage();
+  }, [controller.refreshUsage]);
+
+  const handleSaveSettings = useCallback(() => {
+    void controller.saveSettings();
+  }, [controller.saveSettings]);
+
+  const handleSelectProfile = useCallback(
+    (profile: Parameters<AppController["selectProfile"]>[0]) => {
+      void controller.selectProfile(profile);
+    },
+    [controller.selectProfile],
+  );
+
+  const handleAction = useCallback(
+    (kind: Parameters<AppController["startAction"]>[0], profileId: string) => {
+      void controller.startAction(kind, profileId);
+    },
+    [controller.startAction],
+  );
+
+  const handleToggleHidden = useCallback(
+    (profileId: string) => {
+      void controller.toggleProfileVisibility(profileId);
+    },
+    [controller.toggleProfileVisibility],
+  );
+
+  const handleLogout = useCallback(
+    (profileId: string) => {
+      void controller.startAction("logout", profileId);
+    },
+    [controller.startAction],
+  );
+
+  const handleSendSessionInput = useCallback(
+    (input: string) => {
+      void controller.sendSessionInput(input);
+    },
+    [controller.sendSessionInput],
+  );
+
+  const handleConfirmPendingProfile = useCallback(() => {
+    void controller.confirmPendingProfile();
+  }, [controller.confirmPendingProfile]);
+
   return (
     <PanelChrome onClose={() => void controller.hideWindow()} onStartDrag={() => void controller.startWindowDrag()}>
       <StatusBar
@@ -16,8 +64,8 @@ export function TrayPanel(controller: AppController) {
         lastUpdated={controller.lastUpdated}
         refreshing={controller.refreshing}
         settingsOpen={controller.view === "settings"}
-        onRefresh={() => void controller.refreshUsage()}
-        onToggleSettings={() => controller.setView(controller.view === "settings" ? "dashboard" : "settings")}
+        onRefresh={handleRefresh}
+        onToggleSettings={controller.toggleSettingsView}
       />
 
       {isBrowserPreview && (
@@ -38,7 +86,7 @@ export function TrayPanel(controller: AppController) {
           config={controller.draftConfig}
           upstream={controller.upstream}
           onChange={controller.setDraftConfig}
-          onSave={() => void controller.saveSettings()}
+          onSave={handleSaveSettings}
         />
       ) : (
         <>
@@ -50,17 +98,17 @@ export function TrayPanel(controller: AppController) {
             loading={controller.loading}
             newProfileId={controller.newProfileId}
             onNewProfileIdChange={controller.setNewProfileId}
-            onSelect={(profile) => void controller.selectProfile(profile)}
-            onAction={(kind, profileId) => void controller.startAction(kind, profileId)}
-            onToggleHidden={(profileId) => void controller.toggleProfileVisibility(profileId)}
+            onSelect={handleSelectProfile}
+            onAction={handleAction}
+            onToggleHidden={handleToggleHidden}
           />
-          <SessionPanel session={controller.session} onSendInput={(input) => void controller.sendSessionInput(input)} />
+          <SessionPanel session={controller.session} onSendInput={handleSendSessionInput} />
           <UsageTable
             profiles={controller.profiles}
             config={controller.config}
             resetAt={controller.selected?.fiveHourReset ?? null}
-            onToggleHidden={(profileId) => void controller.toggleProfileVisibility(profileId)}
-            onLogout={(profileId) => void controller.startAction("logout", profileId)}
+            onToggleHidden={handleToggleHidden}
+            onLogout={handleLogout}
           />
         </>
       )}
@@ -74,7 +122,7 @@ export function TrayPanel(controller: AppController) {
               <button type="button" onClick={controller.cancelPendingProfile}>
                 취소
               </button>
-              <button className="danger-button" type="button" onClick={() => void controller.confirmPendingProfile()}>
+              <button className="danger-button" type="button" onClick={handleConfirmPendingProfile}>
                 재시작
               </button>
             </div>

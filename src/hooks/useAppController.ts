@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   activeProfile,
@@ -36,6 +36,7 @@ export function useAppController() {
   const notifiedSessions = useRef(new Set<string>());
   const notifiedLowQuota = useRef(new Set<string>());
   const configRef = useRef(config);
+  const profilesRef = useRef(profiles);
   const refreshInFlight = useRef<Promise<void> | null>(null);
   const pendingForceRestart = useRef(false);
 
@@ -45,6 +46,10 @@ export function useAppController() {
   useEffect(() => {
     configRef.current = config;
   }, [config]);
+
+  useEffect(() => {
+    profilesRef.current = profiles;
+  }, [profiles]);
 
   const publishTrayState = useCallback(async (nextConfig: AppConfig, rows: ProfileUsage[]) => {
     await native.setTrayTooltip(trayLabel(activeProfile(nextConfig, rows)));
@@ -92,6 +97,7 @@ export function useAppController() {
       setError(null);
       try {
         const rows = await native.listProfileUsage();
+        profilesRef.current = rows;
         setProfiles(rows);
         setLastUpdated(new Date().toISOString());
         notifyLowQuota(rows);
@@ -114,17 +120,17 @@ export function useAppController() {
       configRef.current = saved;
       setConfig(saved);
       setDraftConfig(saved);
-      await publishTrayState(saved, profiles);
+      await publishTrayState(saved, profilesRef.current);
       return saved;
     },
-    [profiles, publishTrayState],
+    [publishTrayState],
   );
 
   const saveSettings = useCallback(async () => {
     try {
       await saveConfig(draftConfig);
       toast.success("설정을 저장했습니다.");
-      setView("dashboard");
+      startTransition(() => setView("dashboard"));
     } catch (err) {
       const message = String(err);
       setError(message);
@@ -134,18 +140,19 @@ export function useAppController() {
 
   const selectProfile = useCallback(
     async (profile: ProfileUsage, confirmed = false, forceRestart = false) => {
-      const nextConfig = { ...config, activeProfileId: profile.profileId };
-      const shouldRestartDesktop = forceRestart || config.restartDesktopOnSwitch;
-      if (shouldRestartDesktop && config.confirmBeforeSwitch && !confirmed) {
+      const currentConfig = configRef.current;
+      const nextConfig = { ...currentConfig, activeProfileId: profile.profileId };
+      const shouldRestartDesktop = forceRestart || currentConfig.restartDesktopOnSwitch;
+      if (shouldRestartDesktop && currentConfig.confirmBeforeSwitch && !confirmed) {
         pendingForceRestart.current = forceRestart;
         setPendingProfile(profile);
         return;
       }
 
       try {
-        const saved = await saveConfig(nextConfig);
-        const switchConfig = shouldRestartDesktop ? { ...saved, restartDesktopOnSwitch: true } : saved;
+        const switchConfig = shouldRestartDesktop ? { ...nextConfig, restartDesktopOnSwitch: true } : nextConfig;
         const result = await native.switchProfile(profile.profileId, switchConfig);
+        await saveConfig(nextConfig);
         toast.message(result.message);
         pendingForceRestart.current = false;
         setPendingProfile(null);
@@ -155,12 +162,12 @@ export function useAppController() {
         toast.error(message);
       }
     },
-    [config, saveConfig],
+    [saveConfig],
   );
 
   const runProfileById = useCallback(
     async (profileId: string) => {
-      const profile = profiles.find((row) => row.profileId === profileId);
+      const profile = profilesRef.current.find((row) => row.profileId === profileId);
       if (!profile) {
         const message = `Unknown profile: ${profileId}`;
         setError(message);
@@ -169,17 +176,17 @@ export function useAppController() {
       }
       await selectProfile(profile, false, true);
     },
-    [profiles, selectProfile],
+    [selectProfile],
   );
 
   const selectProfileById = useCallback(
     async (profileId: string) => {
-      const profile = profiles.find((row) => row.profileId === profileId);
+      const profile = profilesRef.current.find((row) => row.profileId === profileId);
       if (profile) {
         await selectProfile(profile);
       }
     },
-    [profiles, selectProfile],
+    [selectProfile],
   );
 
   const startAction = useCallback(
@@ -195,13 +202,13 @@ export function useAppController() {
         return;
       }
       try {
-        const next = await native.startActionSession(kind, id, config);
+        const next = await native.startActionSession(kind, id, configRef.current);
         setSession(next);
         notifySessionComplete(next);
         if (next.finishedAt) {
           void refreshUsage();
         }
-        if (next.finishedAt && !config.showSessionLogs) {
+        if (next.finishedAt && !configRef.current.showSessionLogs) {
           setSession(null);
         }
       } catch (err) {
@@ -210,7 +217,7 @@ export function useAppController() {
         toast.error(message);
       }
     },
-    [config, notifySessionComplete, refreshUsage, runProfileById],
+    [notifySessionComplete, refreshUsage, runProfileById],
   );
 
   const confirmPendingProfile = useCallback(async () => {
@@ -229,15 +236,29 @@ export function useAppController() {
   const toggleProfileVisibility = useCallback(
     async (profileId: string) => {
       try {
-        await saveConfig(toggleHiddenProfile(config, profileId));
+        await saveConfig(toggleHiddenProfile(configRef.current, profileId));
       } catch (err) {
         const message = String(err);
         setError(message);
         toast.error(message);
       }
     },
-    [config, saveConfig],
+    [saveConfig],
   );
+
+  const showDashboard = useCallback(() => {
+    startTransition(() => setView("dashboard"));
+  }, []);
+
+  const showSettings = useCallback(() => {
+    startTransition(() => setView("settings"));
+  }, []);
+
+  const toggleSettingsView = useCallback(() => {
+    startTransition(() => {
+      setView((current) => (current === "settings" ? "dashboard" : "settings"));
+    });
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -287,8 +308,8 @@ export function useAppController() {
     let cancelled = false;
     let unlisten: (() => void) | null = null;
     const handleTrayAction = (payload: TrayActionPayload) => {
-      if (payload.action === "open") setView("dashboard");
-      if (payload.action === "settings") setView("settings");
+      if (payload.action === "open") showDashboard();
+      if (payload.action === "settings") showSettings();
       if (payload.action === "refresh") void refreshUsage();
       if (payload.action === "switchProfile" && payload.profileId) {
         void selectProfileById(payload.profileId);
@@ -306,7 +327,7 @@ export function useAppController() {
       cancelled = true;
       unlisten?.();
     };
-  }, [refreshUsage, selectProfileById]);
+  }, [refreshUsage, selectProfileById, showDashboard, showSettings]);
 
   return {
     view,
@@ -323,6 +344,9 @@ export function useAppController() {
     error,
     pendingProfile,
     setView,
+    showDashboard,
+    showSettings,
+    toggleSettingsView,
     setDraftConfig,
     setNewProfileId,
     refreshUsage,

@@ -1,4 +1,5 @@
 import { Cloud, Eye, RefreshCw, Save, ScrollText, Shield, Terminal } from "lucide-react";
+import { memo } from "react";
 import type { AppConfig, UpstreamStatus } from "../types/domain";
 
 interface SettingsPanelProps {
@@ -8,7 +9,7 @@ interface SettingsPanelProps {
   onSave: () => void;
 }
 
-export function SettingsPanel({ config, upstream, onChange, onSave }: SettingsPanelProps) {
+export const SettingsPanel = memo(function SettingsPanel({ config, upstream, onChange, onSave }: SettingsPanelProps) {
   return (
     <section className="settings-panel">
       <div className="settings-group">
@@ -116,4 +117,4 @@ export function SettingsPanel({ config, upstream, onChange, onSave }: SettingsPa
       </button>
     </section>
   );
-}
+});

@@ -11,28 +11,32 @@ use actions::{get_action_session, send_action_input, start_action_session, Actio
 use config::{get_app_config, save_app_config};
 use desktop::restart_codex_desktop;
 use domain::{AppConfig, SwitchResult};
-use profiles::{ensure_profile, list_profile_usage, resolve_profile};
+use profiles::{
+    ensure_profile, list_profile_usage, resolve_profile, sync_profile_auth_to_default_home,
+};
 use tray::{set_tray_tooltip, setup_tray, update_tray_menu_state, TrayStore};
 use upstream::check_cdx_upstream;
 
 #[tauri::command]
 fn switch_profile(profile_id: String, config: AppConfig) -> Result<SwitchResult, String> {
+    let profile =
+        resolve_profile(&profile_id)?.ok_or_else(|| format!("Unknown profile: {profile_id}"))?;
+    sync_profile_auth_to_default_home(&profile)?;
+
     if !config.restart_desktop_on_switch {
         return Ok(SwitchResult {
             active_profile_id: profile_id.clone(),
             desktop_restarted: false,
-            message: format!("활성 프로필을 {profile_id}(으)로 변경했습니다."),
+            message: format!("활성 프로필과 Windows Codex 토큰을 {profile_id}(으)로 변경했습니다."),
         });
     }
 
-    let profile =
-        resolve_profile(&profile_id)?.ok_or_else(|| format!("Unknown profile: {profile_id}"))?;
     restart_codex_desktop(&config.codex_desktop_path, &profile.home_path)?;
     Ok(SwitchResult {
         active_profile_id: profile_id.clone(),
         desktop_restarted: true,
         message: format!(
-            "{profile_id} 선택 후 Codex Desktop을 재시작했습니다. Desktop 로그인 전환은 수동 확인이 필요할 수 있습니다."
+            "{profile_id} 토큰으로 Windows Codex home을 동기화하고 Codex Desktop을 재시작했습니다."
         ),
     })
 }

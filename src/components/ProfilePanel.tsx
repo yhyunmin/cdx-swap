@@ -1,4 +1,5 @@
 import { Eye, EyeOff, LogIn, LogOut, Play } from "lucide-react";
+import { memo } from "react";
 import { displayAccount } from "../lib/app-model";
 import type { ActionKind, ProfileUsage } from "../types/domain";
 
@@ -15,7 +16,7 @@ interface ProfilePanelProps {
   onToggleHidden: (profileId: string) => void;
 }
 
-export function ProfilePanel({
+export const ProfilePanel = memo(function ProfilePanel({
   profiles,
   activeProfileId,
   hiddenProfileIds,
@@ -87,4 +88,4 @@ export function ProfilePanel({
       </div>
     </section>
   );
-}
+});

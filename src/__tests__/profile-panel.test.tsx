@@ -25,6 +25,27 @@ describe("ProfilePanel", () => {
     expect(screen.getByText("Logout")).toBeInTheDocument();
   });
 
+  it("dispatches run for the selected profile", () => {
+    const onAction = vi.fn();
+    render(
+      <ProfilePanel
+        profiles={[{ profileId: "main", account: "main@example.com", plan: null, fiveHourLeft: 50, fiveHourReset: null, weeklyLeft: 60, weeklyReset: null, error: null }]}
+        activeProfileId="main"
+        hiddenProfileIds={[]}
+        maskEmails={false}
+        loading={false}
+        newProfileId="work"
+        onNewProfileIdChange={vi.fn()}
+        onSelect={vi.fn()}
+        onAction={onAction}
+        onToggleHidden={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Run"));
+    expect(onAction).toHaveBeenCalledWith("run", "main");
+  });
+
   it("shows the new profile login entry when no profiles exist", () => {
     render(
       <ProfilePanel

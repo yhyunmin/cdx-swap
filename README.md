@@ -31,7 +31,8 @@ npm run tauri:dev
 - Use `변경` to select the active profile used for tray status.
 - The tray status shows the active profile's Codex 5H / Week remaining quota.
 - Login and Logout run through the configured Codex CLI path. Run selects the
-  profile and restarts Codex Desktop with that profile's `CODEX_HOME`.
+  profile, syncs that profile's auth token into the Windows Codex home, and
+  restarts Codex Desktop with that profile's `CODEX_HOME`.
 
 ## Security First
 

@@ -1,4 +1,5 @@
 import { Eye, EyeOff, LogOut } from "lucide-react";
+import { memo } from "react";
 import { displayAccount, isProfileHidden } from "../lib/app-model";
 import { formatResetDate } from "../lib/time";
 import type { AppConfig, ProfileUsage } from "../types/domain";
@@ -10,9 +11,9 @@ function quotaTone(value: number | null) {
   return "good";
 }
 
-function QuotaCell({ value }: { value: number | null }) {
+const QuotaCell = memo(function QuotaCell({ value }: { value: number | null }) {
   return <span className={`quota quota--${quotaTone(value)}`}>{value == null ? "--" : `${value}%`}</span>;
-}
+});
 
 interface UsageTableProps {
   profiles: ProfileUsage[];
@@ -22,7 +23,7 @@ interface UsageTableProps {
   onLogout: (profileId: string) => void;
 }
 
-export function UsageTable({ profiles, config, resetAt, onToggleHidden, onLogout }: UsageTableProps) {
+export const UsageTable = memo(function UsageTable({ profiles, config, resetAt, onToggleHidden, onLogout }: UsageTableProps) {
   return (
     <section className="panel">
       <div className="section-title">
@@ -89,4 +90,4 @@ export function UsageTable({ profiles, config, resetAt, onToggleHidden, onLogout
       </div>
     </section>
   );
-}
+});

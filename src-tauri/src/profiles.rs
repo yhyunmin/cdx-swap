@@ -5,7 +5,13 @@ use crate::{
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use serde::Deserialize;
 use serde_json::Value;
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
+
+const AUTH_FILE: &str = "auth.json";
 
 #[derive(Deserialize)]
 struct AuthFile {
@@ -24,6 +30,10 @@ fn home_dir() -> Result<PathBuf, String> {
     dirs::home_dir().ok_or_else(|| "Failed to resolve home directory.".to_string())
 }
 
+fn default_codex_home() -> Result<PathBuf, String> {
+    Ok(home_dir()?.join(".codex"))
+}
+
 fn profiles_root() -> Result<PathBuf, String> {
     Ok(home_dir()?.join(".cdx").join("profiles"))
 }
@@ -35,7 +45,7 @@ fn decode_jwt_payload(token: &str) -> Option<Value> {
 }
 
 fn read_auth_summary(home_path: &PathBuf) -> Option<AuthSummary> {
-    let raw = fs::read_to_string(home_path.join("auth.json")).ok()?;
+    let raw = fs::read_to_string(home_path.join(AUTH_FILE)).ok()?;
     let auth_file: AuthFile = serde_json::from_str(&raw).ok()?;
     let tokens = auth_file.tokens?;
     let payload = tokens.id_token.as_deref().and_then(decode_jwt_payload);
@@ -76,6 +86,44 @@ fn read_auth_summary(home_path: &PathBuf) -> Option<AuthSummary> {
         access_token: tokens.access_token,
         last_refresh: auth_file.last_refresh,
     })
+}
+
+fn same_file(left: &Path, right: &Path) -> bool {
+    match (left.canonicalize(), right.canonicalize()) {
+        (Ok(left), Ok(right)) => left == right,
+        _ => false,
+    }
+}
+
+fn sync_profile_auth_file(profile: &ProfileRecord, target_home: &Path) -> Result<(), String> {
+    let source = PathBuf::from(&profile.home_path).join(AUTH_FILE);
+    if !source.is_file() {
+        return Err(format!(
+            "Profile {} is not logged in. Use Login first.",
+            profile.id
+        ));
+    }
+
+    fs::create_dir_all(target_home)
+        .map_err(|error| format!("Failed to create default Codex home: {error}"))?;
+    let target = target_home.join(AUTH_FILE);
+    if same_file(&source, &target) {
+        return Ok(());
+    }
+
+    fs::copy(&source, &target)
+        .map_err(|error| format!("Failed to sync Codex auth token: {error}"))?;
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+pub fn sync_profile_auth_to_default_home(profile: &ProfileRecord) -> Result<(), String> {
+    sync_profile_auth_file(profile, &default_codex_home()?)
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn sync_profile_auth_to_default_home(_profile: &ProfileRecord) -> Result<(), String> {
+    Ok(())
 }
 
 fn has_auth(profile: &ProfileRecord) -> bool {
@@ -209,4 +257,63 @@ pub async fn list_profile_usage() -> Result<Vec<ProfileUsage>, String> {
         rows.push(fetch_usage(&profile).await);
     }
     Ok(rows)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_path(label: &str) -> PathBuf {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be valid")
+            .as_nanos();
+        std::env::temp_dir().join(format!("cdx-swap-{label}-{suffix}"))
+    }
+
+    fn profile_at(home_path: &Path) -> ProfileRecord {
+        ProfileRecord {
+            id: "work".to_string(),
+            home_path: home_path.to_string_lossy().to_string(),
+            source: ProfileSource::Modern,
+            auth: None,
+        }
+    }
+
+    #[test]
+    fn sync_profile_auth_file_copies_auth_to_target_home() {
+        let source_home = temp_path("source");
+        let target_home = temp_path("target");
+        fs::create_dir_all(&source_home).expect("source home should be created");
+        fs::write(
+            source_home.join(AUTH_FILE),
+            r#"{"tokens":{"account_id":"a"}}"#,
+        )
+        .expect("auth fixture should be written");
+
+        sync_profile_auth_file(&profile_at(&source_home), &target_home).expect("auth should sync");
+
+        let copied =
+            fs::read_to_string(target_home.join(AUTH_FILE)).expect("target auth should exist");
+        assert!(copied.contains(r#""account_id":"a""#));
+
+        let _ = fs::remove_dir_all(source_home);
+        let _ = fs::remove_dir_all(target_home);
+    }
+
+    #[test]
+    fn sync_profile_auth_file_fails_when_profile_is_not_logged_in() {
+        let source_home = temp_path("missing-source");
+        let target_home = temp_path("missing-target");
+        fs::create_dir_all(&source_home).expect("source home should be created");
+
+        let error = sync_profile_auth_file(&profile_at(&source_home), &target_home)
+            .expect_err("missing auth should fail");
+
+        assert!(error.contains("Use Login first"));
+
+        let _ = fs::remove_dir_all(source_home);
+        let _ = fs::remove_dir_all(target_home);
+    }
 }

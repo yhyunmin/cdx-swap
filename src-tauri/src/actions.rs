@@ -137,6 +137,12 @@ pub fn start_action_session(
     profile_id: String,
     config: AppConfig,
 ) -> Result<ActionSession, String> {
+    if matches!(kind, ActionKind::Run) {
+        return Err(
+            "Run uses profile switching instead of an interactive Codex CLI session.".to_string(),
+        );
+    }
+
     let profile = match kind {
         ActionKind::Login => ensure_profile(profile_id.clone())?,
         _ => {

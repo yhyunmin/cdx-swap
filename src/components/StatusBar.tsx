@@ -1,4 +1,5 @@
 import { Check, RefreshCw, Settings, X } from "lucide-react";
+import { memo } from "react";
 import { formatRefreshTime } from "../lib/time";
 import type { ProfileUsage } from "../types/domain";
 
@@ -11,7 +12,7 @@ interface StatusBarProps {
   onToggleSettings: () => void;
 }
 
-export function StatusBar({ activeProfile, lastUpdated, refreshing, settingsOpen, onRefresh, onToggleSettings }: StatusBarProps) {
+export const StatusBar = memo(function StatusBar({ activeProfile, lastUpdated, refreshing, settingsOpen, onRefresh, onToggleSettings }: StatusBarProps) {
   return (
     <header className="topbar">
       <div className="status-line">
@@ -30,4 +31,4 @@ export function StatusBar({ activeProfile, lastUpdated, refreshing, settingsOpen
       </div>
     </header>
   );
-}
+});
