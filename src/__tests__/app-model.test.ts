@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { activeProfile, defaultConfig, displayAccount, isProfileHidden, toggleHiddenProfile, trayLabel, trayMenuState } from "../lib/app-model";
+import {
+  activeProfile,
+  defaultConfig,
+  displayAccount,
+  isProfileHidden,
+  lowQuotaAlerts,
+  toggleHiddenProfile,
+  trayLabel,
+  trayMenuState,
+} from "../lib/app-model";
 import type { ProfileUsage } from "../types/domain";
 
 const profiles: ProfileUsage[] = [
@@ -40,5 +49,14 @@ describe("app model", () => {
   it("masks emails when privacy mode is enabled", () => {
     expect(displayAccount("main@example.com", true)).toBe("ma****@example.com");
     expect(displayAccount("main@example.com", false)).toBe("main@example.com");
+  });
+
+  it("reports low quota alerts only below the configured threshold", () => {
+    expect(lowQuotaAlerts([{ ...profiles[0], fiveHourLeft: 19, weeklyLeft: 20 }])).toEqual([
+      { key: "main:5H", profileId: "main", label: "5H", value: 19 },
+    ]);
+    expect(lowQuotaAlerts([{ ...profiles[0], fiveHourLeft: 20, weeklyLeft: 19 }])).toEqual([
+      { key: "main:Week", profileId: "main", label: "Week", value: 19 },
+    ]);
   });
 });

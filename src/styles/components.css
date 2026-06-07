@@ -67,9 +67,15 @@
   background: var(--color-primary-soft);
 }
 
+.profile-heading {
+  min-width: 0;
+}
+
 .profile-main {
   display: grid;
   gap: 2px;
+  min-width: 0;
+  width: 100%;
   padding: 0;
   border: 0;
   text-align: left;

@@ -45,12 +45,14 @@ export function TrayPanel(controller: AppController) {
           <ProfilePanel
             profiles={controller.profiles}
             activeProfileId={controller.selected?.profileId ?? null}
+            hiddenProfileIds={controller.config.hiddenProfileIds}
             maskEmails={controller.config.maskEmails}
             loading={controller.loading}
             newProfileId={controller.newProfileId}
             onNewProfileIdChange={controller.setNewProfileId}
             onSelect={(profile) => void controller.selectProfile(profile)}
             onAction={(kind, profileId) => void controller.startAction(kind, profileId)}
+            onToggleHidden={(profileId) => void controller.toggleProfileVisibility(profileId)}
           />
           <SessionPanel session={controller.session} onSendInput={(input) => void controller.sendSessionInput(input)} />
           <UsageTable

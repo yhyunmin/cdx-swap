@@ -9,12 +9,14 @@ describe("ProfilePanel", () => {
       <ProfilePanel
         profiles={[{ profileId: "main", account: "main@example.com", plan: null, fiveHourLeft: 50, fiveHourReset: null, weeklyLeft: 60, weeklyReset: null, error: null }]}
         activeProfileId="main"
+        hiddenProfileIds={[]}
         maskEmails={false}
         loading={false}
         newProfileId="work"
         onNewProfileIdChange={vi.fn()}
         onSelect={vi.fn()}
         onAction={vi.fn()}
+        onToggleHidden={vi.fn()}
       />,
     );
 
@@ -28,17 +30,42 @@ describe("ProfilePanel", () => {
       <ProfilePanel
         profiles={[]}
         activeProfileId={null}
+        hiddenProfileIds={[]}
         maskEmails={false}
         loading={false}
         newProfileId="work"
         onNewProfileIdChange={vi.fn()}
         onSelect={vi.fn()}
         onAction={vi.fn()}
+        onToggleHidden={vi.fn()}
       />,
     );
 
     expect(screen.getByPlaceholderText("new-profile")).toBeInTheDocument();
     expect(screen.getByText(/새 프로필 이름/)).toBeInTheDocument();
+  });
+
+  it("toggles profile visibility without starting a login action", () => {
+    const onAction = vi.fn();
+    const onToggleHidden = vi.fn();
+    render(
+      <ProfilePanel
+        profiles={[{ profileId: "main", account: "main@example.com", plan: null, fiveHourLeft: 50, fiveHourReset: null, weeklyLeft: 60, weeklyReset: null, error: null }]}
+        activeProfileId="main"
+        hiddenProfileIds={[]}
+        maskEmails={false}
+        loading={false}
+        newProfileId="work"
+        onNewProfileIdChange={vi.fn()}
+        onSelect={vi.fn()}
+        onAction={onAction}
+        onToggleHidden={onToggleHidden}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("main 숨기기"));
+    expect(onToggleHidden).toHaveBeenCalledWith("main");
+    expect(onAction).not.toHaveBeenCalled();
   });
 });
 

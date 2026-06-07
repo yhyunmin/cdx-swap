@@ -43,6 +43,7 @@ input {
 
 .topbar,
 .section-title,
+.profile-heading,
 .usage-row,
 .provider-row {
   display: flex;

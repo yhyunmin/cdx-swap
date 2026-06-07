@@ -1,5 +1,7 @@
 import type { AppConfig, ProfileUsage } from "../types/domain";
 
+export const lowQuotaThreshold = 20;
+
 export const defaultConfig: AppConfig = {
   activeProfileId: null,
   codexCliPath: "",
@@ -61,4 +63,34 @@ export function displayAccount(account: string, maskEmails: boolean) {
   const [name, domain] = account.split("@");
   if (!name || !domain) return account;
   return `${name.slice(0, 2)}****@${domain}`;
+}
+
+export interface LowQuotaAlert {
+  key: string;
+  profileId: string;
+  label: "5H" | "Week";
+  value: number;
+}
+
+export function lowQuotaAlerts(profiles: ProfileUsage[]): LowQuotaAlert[] {
+  return profiles.flatMap((profile) => {
+    const alerts: LowQuotaAlert[] = [];
+    if (profile.fiveHourLeft != null && profile.fiveHourLeft < lowQuotaThreshold) {
+      alerts.push({
+        key: `${profile.profileId}:5H`,
+        profileId: profile.profileId,
+        label: "5H",
+        value: profile.fiveHourLeft,
+      });
+    }
+    if (profile.weeklyLeft != null && profile.weeklyLeft < lowQuotaThreshold) {
+      alerts.push({
+        key: `${profile.profileId}:Week`,
+        profileId: profile.profileId,
+        label: "Week",
+        value: profile.weeklyLeft,
+      });
+    }
+    return alerts;
+  });
 }

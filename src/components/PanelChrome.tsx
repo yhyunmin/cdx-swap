@@ -10,9 +10,24 @@ interface PanelChromeProps {
 export function PanelChrome({ children, onClose, onStartDrag }: PanelChromeProps) {
   return (
     <main className="tray-shell">
-      <div className="drag-bar" onMouseDown={onStartDrag} role="presentation">
+      <div
+        className="drag-bar"
+        onMouseDown={(event) => {
+          if (event.button === 0) onStartDrag();
+        }}
+        role="presentation"
+      >
         <GripHorizontal size={18} />
-        <button className="icon-button" type="button" onMouseDown={(event) => event.stopPropagation()} onClick={onClose} aria-label="Close">
+        <button
+          className="icon-button"
+          type="button"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={onClose}
+          aria-label="Close"
+        >
           <X size={17} />
         </button>
       </div>

@@ -51,7 +51,15 @@ export function UsageTable({ profiles, config, resetAt, onToggleHidden, onLogout
                 <button
                   className="icon-button icon-button--sm"
                   type="button"
-                  onClick={() => onToggleHidden(profile.profileId)}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onToggleHidden(profile.profileId);
+                  }}
                   aria-label={hidden ? `${profile.profileId} 보이기` : `${profile.profileId} 숨기기`}
                   title={hidden ? "보이기" : "숨기기"}
                 >
@@ -60,7 +68,15 @@ export function UsageTable({ profiles, config, resetAt, onToggleHidden, onLogout
                 <button
                   className="icon-button icon-button--sm danger-icon"
                   type="button"
-                  onClick={() => onLogout(profile.profileId)}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onLogout(profile.profileId);
+                  }}
                   aria-label={`${profile.profileId} 로그아웃`}
                   title="로그아웃"
                 >

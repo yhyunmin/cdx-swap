@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   activeProfile,
   defaultConfig,
+  lowQuotaAlerts,
   normalizeConfig,
   toggleHiddenProfile,
   trayLabel,
@@ -33,6 +34,7 @@ export function useAppController() {
   const [error, setError] = useState<string | null>(null);
   const [pendingProfile, setPendingProfile] = useState<ProfileUsage | null>(null);
   const notifiedSessions = useRef(new Set<string>());
+  const notifiedLowQuota = useRef(new Set<string>());
 
   const selected = useMemo(() => activeProfile(config, profiles), [config, profiles]);
   const visibleSession = config.showSessionLogs ? session : null;
@@ -57,6 +59,23 @@ export function useAppController() {
     [],
   );
 
+  const notifyLowQuota = useCallback((rows: ProfileUsage[]) => {
+    const alerts = lowQuotaAlerts(rows);
+    const currentKeys = new Set(alerts.map((alert) => alert.key));
+    for (const key of notifiedLowQuota.current) {
+      if (!currentKeys.has(key)) {
+        notifiedLowQuota.current.delete(key);
+      }
+    }
+    for (const alert of alerts) {
+      if (notifiedLowQuota.current.has(alert.key)) {
+        continue;
+      }
+      notifiedLowQuota.current.add(alert.key);
+      toast.warning(`${alert.profileId} ${alert.label} 잔여량 ${alert.value}%`);
+    }
+  }, []);
+
   const refreshUsage = useCallback(async () => {
     setRefreshing(true);
     setError(null);
@@ -64,6 +83,7 @@ export function useAppController() {
       const rows = await native.listProfileUsage();
       setProfiles(rows);
       setLastUpdated(new Date().toISOString());
+      notifyLowQuota(rows);
       await publishTrayState(config, rows);
     } catch (err) {
       setError(String(err));
@@ -71,7 +91,7 @@ export function useAppController() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [config, publishTrayState]);
+  }, [config, notifyLowQuota, publishTrayState]);
 
   const saveConfig = useCallback(
     async (nextConfig: AppConfig) => {
