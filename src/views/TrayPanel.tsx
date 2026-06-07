@@ -74,7 +74,7 @@ export function TrayPanel(controller: AppController) {
               <button type="button" onClick={controller.cancelPendingProfile}>
                 취소
               </button>
-              <button className="danger-button" type="button" onClick={() => void controller.selectProfile(controller.pendingProfile!, true)}>
+              <button className="danger-button" type="button" onClick={() => void controller.confirmPendingProfile()}>
                 재시작
               </button>
             </div>

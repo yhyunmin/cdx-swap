@@ -35,9 +35,16 @@ export function useAppController() {
   const [pendingProfile, setPendingProfile] = useState<ProfileUsage | null>(null);
   const notifiedSessions = useRef(new Set<string>());
   const notifiedLowQuota = useRef(new Set<string>());
+  const configRef = useRef(config);
+  const refreshInFlight = useRef<Promise<void> | null>(null);
+  const pendingForceRestart = useRef(false);
 
   const selected = useMemo(() => activeProfile(config, profiles), [config, profiles]);
   const visibleSession = config.showSessionLogs ? session : null;
+
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   const publishTrayState = useCallback(async (nextConfig: AppConfig, rows: ProfileUsage[]) => {
     await native.setTrayTooltip(trayLabel(activeProfile(nextConfig, rows)));
@@ -77,25 +84,34 @@ export function useAppController() {
   }, []);
 
   const refreshUsage = useCallback(async () => {
-    setRefreshing(true);
-    setError(null);
-    try {
-      const rows = await native.listProfileUsage();
-      setProfiles(rows);
-      setLastUpdated(new Date().toISOString());
-      notifyLowQuota(rows);
-      await publishTrayState(config, rows);
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    if (refreshInFlight.current) {
+      return refreshInFlight.current;
     }
-  }, [config, notifyLowQuota, publishTrayState]);
+    const refresh = (async () => {
+      setRefreshing(true);
+      setError(null);
+      try {
+        const rows = await native.listProfileUsage();
+        setProfiles(rows);
+        setLastUpdated(new Date().toISOString());
+        notifyLowQuota(rows);
+        await publishTrayState(configRef.current, rows);
+      } catch (err) {
+        setError(String(err));
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+        refreshInFlight.current = null;
+      }
+    })();
+    refreshInFlight.current = refresh;
+    return refresh;
+  }, [notifyLowQuota, publishTrayState]);
 
   const saveConfig = useCallback(
     async (nextConfig: AppConfig) => {
       const saved = normalizeConfig(await native.saveConfig(nextConfig));
+      configRef.current = saved;
       setConfig(saved);
       setDraftConfig(saved);
       await publishTrayState(saved, profiles);
@@ -117,17 +133,21 @@ export function useAppController() {
   }, [draftConfig, saveConfig]);
 
   const selectProfile = useCallback(
-    async (profile: ProfileUsage, confirmed = false) => {
+    async (profile: ProfileUsage, confirmed = false, forceRestart = false) => {
       const nextConfig = { ...config, activeProfileId: profile.profileId };
-      if (config.restartDesktopOnSwitch && config.confirmBeforeSwitch && !confirmed) {
+      const shouldRestartDesktop = forceRestart || config.restartDesktopOnSwitch;
+      if (shouldRestartDesktop && config.confirmBeforeSwitch && !confirmed) {
+        pendingForceRestart.current = forceRestart;
         setPendingProfile(profile);
         return;
       }
 
       try {
         const saved = await saveConfig(nextConfig);
-        const result = await native.switchProfile(profile.profileId, saved);
+        const switchConfig = shouldRestartDesktop ? { ...saved, restartDesktopOnSwitch: true } : saved;
+        const result = await native.switchProfile(profile.profileId, switchConfig);
         toast.message(result.message);
+        pendingForceRestart.current = false;
         setPendingProfile(null);
       } catch (err) {
         const message = String(err);
@@ -138,6 +158,30 @@ export function useAppController() {
     [config, saveConfig],
   );
 
+  const runProfileById = useCallback(
+    async (profileId: string) => {
+      const profile = profiles.find((row) => row.profileId === profileId);
+      if (!profile) {
+        const message = `Unknown profile: ${profileId}`;
+        setError(message);
+        toast.error(message);
+        return;
+      }
+      await selectProfile(profile, false, true);
+    },
+    [profiles, selectProfile],
+  );
+
+  const selectProfileById = useCallback(
+    async (profileId: string) => {
+      const profile = profiles.find((row) => row.profileId === profileId);
+      if (profile) {
+        await selectProfile(profile);
+      }
+    },
+    [profiles, selectProfile],
+  );
+
   const startAction = useCallback(
     async (kind: ActionKind, profileId: string) => {
       const id = profileId.trim();
@@ -146,6 +190,10 @@ export function useAppController() {
         return;
       }
       setError(null);
+      if (kind === "run") {
+        await runProfileById(id);
+        return;
+      }
       try {
         const next = await native.startActionSession(kind, id, config);
         setSession(next);
@@ -162,8 +210,13 @@ export function useAppController() {
         toast.error(message);
       }
     },
-    [config, notifySessionComplete, refreshUsage],
+    [config, notifySessionComplete, refreshUsage, runProfileById],
   );
+
+  const confirmPendingProfile = useCallback(async () => {
+    if (!pendingProfile) return;
+    await selectProfile(pendingProfile, true, pendingForceRestart.current);
+  }, [pendingProfile, selectProfile]);
 
   const sendSessionInput = useCallback(
     async (input: string) => {
@@ -186,21 +239,12 @@ export function useAppController() {
     [config, saveConfig],
   );
 
-  const selectProfileById = useCallback(
-    async (profileId: string) => {
-      const profile = profiles.find((row) => row.profileId === profileId);
-      if (profile) {
-        await selectProfile(profile);
-      }
-    },
-    [profiles, selectProfile],
-  );
-
   useEffect(() => {
     let alive = true;
     void native.getConfig().then((loaded) => {
       if (!alive) return;
       const next = normalizeConfig(loaded);
+      configRef.current = next;
       setConfig(next);
       setDraftConfig(next);
     });
@@ -289,7 +333,11 @@ export function useAppController() {
     toggleProfileVisibility,
     hideWindow: native.hideWindow,
     startWindowDrag: native.startWindowDrag,
-    cancelPendingProfile: () => setPendingProfile(null),
+    cancelPendingProfile: () => {
+      pendingForceRestart.current = false;
+      setPendingProfile(null);
+    },
+    confirmPendingProfile,
   };
 }
 

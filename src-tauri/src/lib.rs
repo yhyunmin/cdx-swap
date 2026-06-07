@@ -11,7 +11,7 @@ use actions::{get_action_session, send_action_input, start_action_session, Actio
 use config::{get_app_config, save_app_config};
 use desktop::restart_codex_desktop;
 use domain::{AppConfig, SwitchResult};
-use profiles::{ensure_profile, list_profile_usage};
+use profiles::{ensure_profile, list_profile_usage, resolve_profile};
 use tray::{set_tray_tooltip, setup_tray, update_tray_menu_state, TrayStore};
 use upstream::check_cdx_upstream;
 
@@ -25,7 +25,9 @@ fn switch_profile(profile_id: String, config: AppConfig) -> Result<SwitchResult,
         });
     }
 
-    restart_codex_desktop(&config.codex_desktop_path)?;
+    let profile =
+        resolve_profile(&profile_id)?.ok_or_else(|| format!("Unknown profile: {profile_id}"))?;
+    restart_codex_desktop(&config.codex_desktop_path, &profile.home_path)?;
     Ok(SwitchResult {
         active_profile_id: profile_id.clone(),
         desktop_restarted: true,
