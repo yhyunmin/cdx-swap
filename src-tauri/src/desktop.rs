@@ -6,7 +6,9 @@ fn ensure_codex_home_layout(codex_home: &str) -> Result<(), String> {
         return Err(format!("Codex profile home does not exist: {codex_home}"));
     }
     if !home.is_dir() {
-        return Err(format!("Codex profile home is not a directory: {codex_home}"));
+        return Err(format!(
+            "Codex profile home is not a directory: {codex_home}"
+        ));
     }
 
     let sessions = home.join("sessions");

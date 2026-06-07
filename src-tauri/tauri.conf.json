@@ -30,6 +30,9 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "icon": [
+      "icons/icon.ico"
+    ],
     "category": "DeveloperTool",
     "shortDescription": "Codex profile usage tray app",
     "longDescription": "Windows-first tray app for viewing Codex usage and safely restarting Codex Desktop."

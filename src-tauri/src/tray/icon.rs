@@ -9,8 +9,12 @@ const DEFAULT_TOOLTIP: &str = "cdx-swap --%";
 
 pub(super) fn setup_tray_icon(app: &AppHandle) -> tauri::Result<()> {
     let app_handle = app.clone();
-    TrayIconBuilder::with_id(TRAY_ID)
-        .tooltip(DEFAULT_TOOLTIP)
+    let mut builder = TrayIconBuilder::with_id(TRAY_ID).tooltip(DEFAULT_TOOLTIP);
+    if let Some(icon) = app.default_window_icon().cloned() {
+        builder = builder.icon(icon);
+    }
+
+    builder
         .on_tray_icon_event(move |_tray, event| {
             if let TrayIconEvent::Click {
                 position,

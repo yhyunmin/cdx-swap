@@ -43,7 +43,8 @@ installer and portable zip.
 - Opens the settings panel with `설정`.
 - Changes the active profile from the `변경` submenu.
 - Shows the active profile's Codex 5H / Week remaining quota in tray status.
-- Runs Codex CLI Login / Run / Logout for each profile.
+- Runs Codex CLI Login / Logout for each profile. Run selects the profile and
+  restarts Codex Desktop with that profile's `CODEX_HOME`.
 - Hides external terminal windows on Windows with `CREATE_NO_WINDOW` and captures stdout / stderr in the app.
 - Supports email masking, hidden profiles, optional session log rendering, and configurable refresh intervals.
 
@@ -76,10 +77,11 @@ work
 personal
 ```
 
-The app starts Codex CLI with a different `CODEX_HOME` per profile.
+The app uses a different `CODEX_HOME` per profile.
 
 - `Login`: starts Codex login flow for the profile.
-- `Run`: starts Codex CLI for the profile.
+- `Run`: selects the profile and restarts Codex Desktop with that profile's
+  `CODEX_HOME`.
 - `Logout`: runs `codex logout` for the profile.
 
 Logout does not delete the profile folder. It only performs auth logout.

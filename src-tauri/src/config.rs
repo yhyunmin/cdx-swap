@@ -14,9 +14,7 @@ fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join(CONFIG_FILE))
 }
 
-#[tauri::command]
-pub fn get_app_config(app: AppHandle) -> Result<AppConfig, String> {
-    let path = config_path(&app)?;
+fn read_config_file(path: &PathBuf) -> Result<AppConfig, String> {
     if !path.exists() {
         return Ok(AppConfig::default());
     }
@@ -27,11 +25,20 @@ pub fn get_app_config(app: AppHandle) -> Result<AppConfig, String> {
 }
 
 #[tauri::command]
-pub fn save_app_config(app: AppHandle, mut config: AppConfig) -> Result<AppConfig, String> {
-    config.refresh_interval_seconds = config.refresh_interval_seconds.max(15);
-    configure_autostart(&app, config.autostart)?;
-
+pub fn get_app_config(app: AppHandle) -> Result<AppConfig, String> {
     let path = config_path(&app)?;
+    read_config_file(&path)
+}
+
+#[tauri::command]
+pub fn save_app_config(app: AppHandle, mut config: AppConfig) -> Result<AppConfig, String> {
+    let path = config_path(&app)?;
+    let previous = read_config_file(&path).unwrap_or_default();
+    config.refresh_interval_seconds = config.refresh_interval_seconds.max(15);
+    if previous.autostart != config.autostart {
+        configure_autostart(&app, config.autostart)?;
+    }
+
     let raw = serde_json::to_string_pretty(&config)
         .map_err(|error| format!("Failed to serialize config: {error}"))?;
     fs::write(path, format!("{raw}\n"))
