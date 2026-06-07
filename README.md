@@ -1,53 +1,48 @@
 # cdx-swap
 
-Windows-first Tauri tray app for Codex profile usage, profile login/run/logout sessions, and optional Codex Desktop safe restart.
+Windows-first tray helper for checking Codex profile usage and running profile
+login / run / logout sessions without leaving a terminal window open.
 
-## Features
+## Quick Start
 
-- Native Windows tray context menu with active profile 5H/Week status.
-- React dashboard panel opened from tray menu near the cursor.
-- Codex profile login, run, and logout sessions without opening an external terminal window on Windows.
-- Profile usage table with email masking and per-profile hide controls.
-- Settings for Codex CLI path override, Codex Desktop path, refresh interval, autostart, session logs, and a v1 Claude provider config slot.
-
-## Requirements
-
-- Node.js 20+
-- Rust toolchain for Tauri builds
-- Windows for production packaging
-- Codex CLI installed. The app auto-detects the default OpenAI Codex install path on Windows and falls back to `PATH`; Settings can override the path.
-
-## Development
-
-```bash
-npm install
-npm run dev
-npm run test
-npm run tauri:dev
-```
-
-## Windows packaging
-
-Official release artifacts are produced by GitHub Actions on `v*` tags:
+Release builds are produced from `v*` tags. Download one of these artifacts from
+the GitHub Release page:
 
 - `cdx-swap_<version>_x64-setup.exe`
 - `cdx-swap_<version>_x64-portable.zip`
 
-Local Windows build:
+From source on Windows:
 
 ```powershell
-npm run windows:package
+git clone https://github.com/yhyunmin/cdx-swap.git
+cd cdx-swap
+npm ci
+npm run tauri:dev
 ```
 
-Linux cross-build is dev-only and copies a portable executable to `Desktop/cdx-swap`:
+- [English README](README.en.md)
+- [한국어 README](README.ko.md)
+- [SECURITY.md](SECURITY.md)
 
-```bash
-./scripts/package-windows-cross.sh
-```
+## Tray Behavior
 
-## Scope
+- Click the tray icon to open the native context menu.
+- Use `열기` for the dashboard panel and `설정` for configuration.
+- Use `변경` to select the active profile used for tray status.
+- The tray status shows the active profile's Codex 5H / Week remaining quota.
+- Login, Run, and Logout run through the configured Codex CLI path.
 
-- Codex usage/profile discovery is owned by the Rust core in this app.
-- Codex Desktop auth/state files are never modified.
-- Auth tokens are used only inside the Rust backend and are not serialized to the frontend, config, or localStorage.
-- Claude and other providers are extension slots only in v0.1.
+## Security First
+
+- Do not commit `auth.json`, profile folders, logs, sessions, backups, or local
+  app config.
+- Auth tokens are consumed only in the Rust backend and are not serialized to the
+  frontend or settings file.
+- Codex usage endpoints are unofficial and may change without notice.
+- Review [SECURITY.md](SECURITY.md) before publishing a fork or attaching logs.
+
+## Credits
+
+The profile model is inspired by [ezpzai/cdx](https://github.com/ezpzai/cdx)
+(Apache-2.0). This project is an independent Windows-first Tauri tray app, not a
+fork.
