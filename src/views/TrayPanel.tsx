@@ -80,6 +80,15 @@ export function TrayPanel(controller: AppController) {
           <span>{controller.error}</span>
         </div>
       )}
+      {controller.currentAccountStatus && !controller.currentAccountStatus.registered && (
+        <div className="notice notice--error">
+          <AlertTriangle size={16} />
+          <span>
+            현재 로그인한 Codex 계정은 프로필에 등록되지 않은 계정입니다
+            {controller.currentAccountStatus.account ? `: ${controller.currentAccountStatus.account}` : "."}
+          </span>
+        </div>
+      )}
 
       {controller.view === "settings" ? (
         <SettingsPanel

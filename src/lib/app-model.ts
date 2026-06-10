@@ -14,6 +14,8 @@ export const defaultConfig: AppConfig = {
   showSessionLogs: false,
   claudeEnabled: false,
   claudeCliPath: "",
+  sshCodexSyncEnabled: false,
+  sshCodexHost: "",
   hiddenProfileIds: [],
 };
 

@@ -6,6 +6,7 @@ import type {
   ActionKind,
   ActionSession,
   AppConfig,
+  CurrentAccountStatus,
   ProfileRecord,
   ProfileUsage,
   SwitchResult,
@@ -18,6 +19,7 @@ interface NativeApi {
   getConfig(): Promise<AppConfig>;
   saveConfig(config: AppConfig): Promise<AppConfig>;
   listProfileUsage(): Promise<ProfileUsage[]>;
+  getCurrentAccountStatus(): Promise<CurrentAccountStatus | null>;
   ensureProfile(profileId: string): Promise<ProfileRecord>;
   startActionSession(kind: ActionKind, profileId: string, config: AppConfig): Promise<ActionSession>;
   sendActionInput(sessionId: string, input: string): Promise<void>;
@@ -52,6 +54,9 @@ const browserApi: NativeApi = {
   },
   async listProfileUsage() {
     return sampleProfiles;
+  },
+  async getCurrentAccountStatus() {
+    return { account: "preview@example.com", accountId: "preview", matchedProfileId: "main", registered: true };
   },
   async ensureProfile(profileId) {
     return { id: profileId, homePath: `~/.cdx/profiles/${profileId}`, source: "modern", auth: null };
@@ -92,6 +97,7 @@ const tauriApi: NativeApi = {
   getConfig: () => invoke("get_app_config"),
   saveConfig: (config) => invoke("save_app_config", { config }),
   listProfileUsage: () => invoke("list_profile_usage"),
+  getCurrentAccountStatus: () => invoke("get_current_account_status"),
   ensureProfile: (profileId) => invoke("ensure_profile", { profileId }),
   startActionSession: (kind, profileId, config) => invoke("start_action_session", { kind, profileId, config }),
   sendActionInput: (sessionId, input) => invoke("send_action_input", { sessionId, input }),

@@ -10,7 +10,7 @@ import {
   trayMenuState,
 } from "../lib/app-model";
 import { native } from "../lib/native";
-import type { ActionKind, ActionSession, AppConfig, ProfileUsage, TrayActionPayload, UpstreamStatus } from "../types/domain";
+import type { ActionKind, ActionSession, AppConfig, CurrentAccountStatus, ProfileUsage, TrayActionPayload, UpstreamStatus } from "../types/domain";
 
 type PanelView = "dashboard" | "settings";
 
@@ -27,6 +27,7 @@ export function useAppController() {
   const [profiles, setProfiles] = useState<ProfileUsage[]>([]);
   const [session, setSession] = useState<ActionSession | null>(null);
   const [upstream, setUpstream] = useState<UpstreamStatus | null>(null);
+  const [currentAccountStatus, setCurrentAccountStatus] = useState<CurrentAccountStatus | null>(null);
   const [newProfileId, setNewProfileId] = useState("work");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,9 +97,13 @@ export function useAppController() {
       setRefreshing(true);
       setError(null);
       try {
-        const rows = await native.listProfileUsage();
+        const [rows, currentStatus] = await Promise.all([
+          native.listProfileUsage(),
+          native.getCurrentAccountStatus().catch(() => null),
+        ]);
         profilesRef.current = rows;
         setProfiles(rows);
+        setCurrentAccountStatus(currentStatus);
         setLastUpdated(new Date().toISOString());
         notifyLowQuota(rows);
         await publishTrayState(configRef.current, rows);
@@ -143,6 +148,10 @@ export function useAppController() {
       const currentConfig = configRef.current;
       const nextConfig = { ...currentConfig, activeProfileId: profile.profileId };
       const shouldRestartDesktop = forceRestart || currentConfig.restartDesktopOnSwitch;
+      if (confirmed) {
+        pendingForceRestart.current = false;
+        setPendingProfile(null);
+      }
       if (shouldRestartDesktop && currentConfig.confirmBeforeSwitch && !confirmed) {
         pendingForceRestart.current = forceRestart;
         setPendingProfile(profile);
@@ -156,13 +165,14 @@ export function useAppController() {
         toast.message(result.message);
         pendingForceRestart.current = false;
         setPendingProfile(null);
+        void refreshUsage();
       } catch (err) {
         const message = String(err);
         setError(message);
         toast.error(message);
       }
     },
-    [saveConfig],
+    [refreshUsage, saveConfig],
   );
 
   const runProfileById = useCallback(
@@ -180,11 +190,15 @@ export function useAppController() {
   );
 
   const selectProfileById = useCallback(
-    async (profileId: string) => {
+    async (profileId: string, confirmed = false) => {
       const profile = profilesRef.current.find((row) => row.profileId === profileId);
       if (profile) {
-        await selectProfile(profile);
+        await selectProfile(profile, confirmed);
+        return;
       }
+      const message = `Unknown profile: ${profileId}`;
+      setError(message);
+      toast.error(message);
     },
     [selectProfile],
   );
@@ -312,7 +326,7 @@ export function useAppController() {
       if (payload.action === "settings") showSettings();
       if (payload.action === "refresh") void refreshUsage();
       if (payload.action === "switchProfile" && payload.profileId) {
-        void selectProfileById(payload.profileId);
+        void selectProfileById(payload.profileId, true);
       }
     };
 
@@ -336,6 +350,7 @@ export function useAppController() {
     profiles,
     session: visibleSession,
     upstream,
+    currentAccountStatus,
     selected,
     newProfileId,
     loading,

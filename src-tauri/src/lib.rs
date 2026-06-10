@@ -12,7 +12,8 @@ use config::{get_app_config, save_app_config};
 use desktop::restart_codex_desktop;
 use domain::{AppConfig, SwitchResult};
 use profiles::{
-    ensure_profile, list_profile_usage, resolve_profile, sync_profile_auth_to_default_home,
+    ensure_profile, get_current_account_status, list_profile_usage, resolve_profile,
+    sync_default_auth_to_ssh, sync_profile_auth_to_default_home,
 };
 use tray::{set_tray_tooltip, setup_tray, update_tray_menu_state, TrayStore};
 use upstream::check_cdx_upstream;
@@ -22,6 +23,9 @@ fn switch_profile(profile_id: String, config: AppConfig) -> Result<SwitchResult,
     let profile =
         resolve_profile(&profile_id)?.ok_or_else(|| format!("Unknown profile: {profile_id}"))?;
     sync_profile_auth_to_default_home(&profile)?;
+    if config.ssh_codex_sync_enabled {
+        sync_default_auth_to_ssh(&config.ssh_codex_host)?;
+    }
 
     if !config.restart_desktop_on_switch {
         return Ok(SwitchResult {
@@ -54,6 +58,7 @@ pub fn run() {
             save_app_config,
             list_profile_usage,
             ensure_profile,
+            get_current_account_status,
             start_action_session,
             send_action_input,
             get_action_session,

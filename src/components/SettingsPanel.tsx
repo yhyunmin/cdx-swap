@@ -1,4 +1,4 @@
-import { Cloud, Eye, RefreshCw, Save, ScrollText, Shield, Terminal } from "lucide-react";
+import { Cloud, Eye, RefreshCw, Save, ScrollText, Server, Shield, Terminal } from "lucide-react";
 import { memo } from "react";
 import type { AppConfig, UpstreamStatus } from "../types/domain";
 
@@ -81,6 +81,25 @@ export const SettingsPanel = memo(function SettingsPanel({ config, upstream, onC
           <ScrollText size={16} />
           <span>세션 로그 보기</span>
         </label>
+        <label className="switch-row">
+          <input
+            type="checkbox"
+            checked={config.sshCodexSyncEnabled}
+            onChange={(event) => onChange({ ...config, sshCodexSyncEnabled: event.target.checked })}
+          />
+          <Server size={16} />
+          <span>SSH Codex 계정 동시 변경</span>
+        </label>
+        {config.sshCodexSyncEnabled && (
+          <label>
+            <span>SSH 이름</span>
+            <input
+              value={config.sshCodexHost}
+              onChange={(event) => onChange({ ...config, sshCodexHost: event.target.value })}
+              placeholder="codex-wsl"
+            />
+          </label>
+        )}
       </div>
 
       <div className="settings-group">

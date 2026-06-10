@@ -13,6 +13,8 @@ export interface AppConfig {
   showSessionLogs: boolean;
   claudeEnabled: boolean;
   claudeCliPath: string;
+  sshCodexSyncEnabled: boolean;
+  sshCodexHost: string;
   hiddenProfileIds: string[];
 }
 
@@ -25,6 +27,13 @@ export interface ProfileUsage {
   weeklyLeft: number | null;
   weeklyReset: string | null;
   error: string | null;
+}
+
+export interface CurrentAccountStatus {
+  account: string | null;
+  accountId: string | null;
+  matchedProfileId: string | null;
+  registered: boolean;
 }
 
 export interface ProfileRecord {

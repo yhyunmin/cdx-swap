@@ -1,5 +1,5 @@
 use crate::{
-    domain::{AuthSummary, ProfileRecord, ProfileSource, ProfileUsage},
+    domain::{AuthSummary, CurrentAccountStatus, ProfileRecord, ProfileSource, ProfileUsage},
     usage::fetch_usage,
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
@@ -8,7 +8,9 @@ use serde_json::Value;
 use std::{
     collections::HashMap,
     fs,
+    io::Write,
     path::{Path, PathBuf},
+    process::{Command, Stdio},
 };
 
 const AUTH_FILE: &str = "auth.json";
@@ -116,6 +118,96 @@ fn sync_profile_auth_file(profile: &ProfileRecord, target_home: &Path) -> Result
     Ok(())
 }
 
+fn auth_identity_matches(current: &AuthSummary, profile: &AuthSummary) -> bool {
+    if current.account_id.is_some() && current.account_id == profile.account_id {
+        return true;
+    }
+    current.email.is_some() && current.email == profile.email
+}
+
+fn auth_file_matches(current_home: &Path, profile_home: &Path) -> bool {
+    let current = fs::read(current_home.join(AUTH_FILE));
+    let profile = fs::read(profile_home.join(AUTH_FILE));
+    matches!((current, profile), (Ok(current), Ok(profile)) if current == profile)
+}
+
+fn current_account_status_result() -> Result<Option<CurrentAccountStatus>, String> {
+    let current_home = default_codex_home()?;
+    let Some(current) = read_auth_summary(&current_home) else {
+        return Ok(None);
+    };
+    let matched_profile_id = list_profiles()?
+        .into_iter()
+        .find(|profile| {
+            let profile_home = PathBuf::from(&profile.home_path);
+            auth_file_matches(&current_home, &profile_home)
+                || profile
+                    .auth
+                    .as_ref()
+                    .map(|auth| auth_identity_matches(&current, auth))
+                    .unwrap_or(false)
+        })
+        .map(|profile| profile.id);
+
+    Ok(Some(CurrentAccountStatus {
+        account: current.email,
+        account_id: current.account_id,
+        registered: matched_profile_id.is_some(),
+        matched_profile_id,
+    }))
+}
+
+fn sync_default_auth_to_ssh_host(host: &str) -> Result<(), String> {
+    let host = host.trim();
+    if host.is_empty() {
+        return Err("SSH host 이름을 입력해야 합니다.".to_string());
+    }
+
+    let auth_path = default_codex_home()?.join(AUTH_FILE);
+    let auth = fs::read(&auth_path)
+        .map_err(|error| format!("Failed to read Windows Codex auth.json: {error}"))?;
+    let mut command = Command::new("ssh");
+    command
+        .args([
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=8",
+            host,
+            "mkdir -p ~/.codex && cat > ~/.codex/auth.json && chmod 600 ~/.codex/auth.json",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped());
+    hide_console_window(&mut command);
+
+    let mut child = command
+        .spawn()
+        .map_err(|error| format!("Failed to start ssh auth sync: {error}"))?;
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "Failed to open ssh stdin.".to_string())?;
+    stdin
+        .write_all(&auth)
+        .map_err(|error| format!("Failed to write ssh auth sync input: {error}"))?;
+    drop(stdin);
+
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("Failed to wait for ssh auth sync: {error}"))?;
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    Err(if stderr.is_empty() {
+        "SSH Codex auth sync failed.".to_string()
+    } else {
+        format!("SSH Codex auth sync failed: {stderr}")
+    })
+}
+
 #[cfg(target_os = "windows")]
 pub fn sync_profile_auth_to_default_home(profile: &ProfileRecord) -> Result<(), String> {
     sync_profile_auth_file(profile, &default_codex_home()?)
@@ -125,6 +217,27 @@ pub fn sync_profile_auth_to_default_home(profile: &ProfileRecord) -> Result<(), 
 pub fn sync_profile_auth_to_default_home(_profile: &ProfileRecord) -> Result<(), String> {
     Ok(())
 }
+
+#[cfg(target_os = "windows")]
+pub fn sync_default_auth_to_ssh(host: &str) -> Result<(), String> {
+    sync_default_auth_to_ssh_host(host)
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn sync_default_auth_to_ssh(_host: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn hide_console_window(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn hide_console_window(_command: &mut Command) {}
 
 fn has_auth(profile: &ProfileRecord) -> bool {
     profile
@@ -259,6 +372,11 @@ pub async fn list_profile_usage() -> Result<Vec<ProfileUsage>, String> {
     Ok(rows)
 }
 
+#[tauri::command]
+pub fn get_current_account_status() -> Result<Option<CurrentAccountStatus>, String> {
+    current_account_status_result()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -315,5 +433,53 @@ mod tests {
 
         let _ = fs::remove_dir_all(source_home);
         let _ = fs::remove_dir_all(target_home);
+    }
+
+    #[test]
+    fn auth_file_matches_exact_auth_contents() {
+        let current_home = temp_path("current-auth");
+        let profile_home = temp_path("profile-auth");
+        fs::create_dir_all(&current_home).expect("current home should be created");
+        fs::create_dir_all(&profile_home).expect("profile home should be created");
+        fs::write(
+            current_home.join(AUTH_FILE),
+            r#"{"tokens":{"account_id":"same"}}"#,
+        )
+        .expect("current auth fixture should be written");
+        fs::write(
+            profile_home.join(AUTH_FILE),
+            r#"{"tokens":{"account_id":"same"}}"#,
+        )
+        .expect("profile auth fixture should be written");
+
+        assert!(auth_file_matches(&current_home, &profile_home));
+
+        let _ = fs::remove_dir_all(current_home);
+        let _ = fs::remove_dir_all(profile_home);
+    }
+
+    #[test]
+    fn auth_identity_matches_by_account_id_or_email() {
+        let current = AuthSummary {
+            email: Some("main@example.com".to_string()),
+            plan: None,
+            organization: None,
+            account_id: Some("acct-main".to_string()),
+            access_token: None,
+            last_refresh: None,
+        };
+        let account_id_match = AuthSummary {
+            email: Some("other@example.com".to_string()),
+            account_id: Some("acct-main".to_string()),
+            ..current.clone()
+        };
+        let email_match = AuthSummary {
+            email: Some("main@example.com".to_string()),
+            account_id: None,
+            ..current.clone()
+        };
+
+        assert!(auth_identity_matches(&current, &account_id_match));
+        assert!(auth_identity_matches(&current, &email_match));
     }
 }

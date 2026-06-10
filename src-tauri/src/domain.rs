@@ -14,6 +14,8 @@ pub struct AppConfig {
     pub show_session_logs: bool,
     pub claude_enabled: bool,
     pub claude_cli_path: String,
+    pub ssh_codex_sync_enabled: bool,
+    pub ssh_codex_host: String,
     pub hidden_profile_ids: Vec<String>,
 }
 
@@ -31,6 +33,8 @@ impl Default for AppConfig {
             show_session_logs: false,
             claude_enabled: false,
             claude_cli_path: String::new(),
+            ssh_codex_sync_enabled: false,
+            ssh_codex_host: String::new(),
             hidden_profile_ids: Vec::new(),
         }
     }
@@ -106,6 +110,15 @@ pub struct ProfileUsage {
     pub weekly_left: Option<u8>,
     pub weekly_reset: Option<String>,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CurrentAccountStatus {
+    pub account: Option<String>,
+    pub account_id: Option<String>,
+    pub matched_profile_id: Option<String>,
+    pub registered: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

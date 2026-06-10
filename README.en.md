@@ -46,6 +46,10 @@ installer and portable zip.
 - Runs Codex CLI Login / Logout for each profile. Run selects the profile,
   syncs that profile's auth token into the Windows Codex home, and restarts
   Codex Desktop with that profile's `CODEX_HOME`.
+- If the Desktop path is empty, cdx-swap tries the running Codex process path,
+  common Windows install paths, and the `Codex` app alias.
+- Optional SSH sync copies the updated Windows `.codex/auth.json` to
+  `~/.codex/auth.json` on the configured SSH host.
 - Hides external terminal windows on Windows with `CREATE_NO_WINDOW` and captures stdout / stderr in the app.
 - Supports email masking, hidden profiles, optional session log rendering, and configurable refresh intervals.
 
@@ -84,6 +88,9 @@ The app uses a different `CODEX_HOME` per profile.
 - `Run`: selects the profile, syncs its `auth.json` into the Windows default
   Codex home, and restarts Codex Desktop with that profile's `CODEX_HOME`.
 - `Logout`: runs `codex logout` for the profile.
+
+When the currently logged-in Windows Codex account does not match any saved
+profile, the panel shows it as an unregistered profile account.
 
 Logout does not delete the profile folder. It only performs auth logout.
 

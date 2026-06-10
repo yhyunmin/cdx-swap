@@ -1,4 +1,10 @@
-use std::{fs, path::Path, process::Command, thread, time::Duration};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+    thread,
+    time::Duration,
+};
 
 fn ensure_codex_home_layout(codex_home: &str) -> Result<(), String> {
     let home = Path::new(codex_home);
@@ -26,15 +32,100 @@ fn ensure_codex_home_layout(codex_home: &str) -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn restart_codex_desktop(codex_desktop_path: &str, codex_home: &str) -> Result<(), String> {
-    if codex_desktop_path.trim().is_empty() {
-        return Err("Codex Desktop 실행 파일 경로를 설정해야 합니다.".to_string());
+fn running_codex_path() -> Option<PathBuf> {
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            "(Get-Process Codex -ErrorAction SilentlyContinue | Where-Object { $_.Path } | Select-Object -First 1 -ExpandProperty Path)",
+        ])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
     }
-    if codex_home.trim().is_empty() {
-        return Err("Codex profile home could not be resolved.".to_string());
+    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if raw.is_empty() {
+        None
+    } else {
+        Some(PathBuf::from(raw))
     }
-    ensure_codex_home_layout(codex_home)?;
+}
 
+#[cfg(target_os = "windows")]
+fn desktop_path_candidates() -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+        candidates.extend([
+            PathBuf::from(&local_app_data)
+                .join("Programs")
+                .join("OpenAI")
+                .join("Codex")
+                .join("Codex.exe"),
+            PathBuf::from(&local_app_data)
+                .join("Programs")
+                .join("OpenAI Codex")
+                .join("Codex.exe"),
+            PathBuf::from(&local_app_data)
+                .join("Programs")
+                .join("Codex")
+                .join("Codex.exe"),
+            PathBuf::from(&local_app_data)
+                .join("OpenAI")
+                .join("Codex")
+                .join("Codex.exe"),
+            PathBuf::from(&local_app_data)
+                .join("Microsoft")
+                .join("WindowsApps")
+                .join("Codex.exe"),
+        ]);
+    }
+    if let Ok(user_profile) = std::env::var("USERPROFILE") {
+        candidates.push(
+            PathBuf::from(user_profile)
+                .join("AppData")
+                .join("Local")
+                .join("Programs")
+                .join("OpenAI")
+                .join("Codex")
+                .join("Codex.exe"),
+        );
+    }
+    for var in ["ProgramFiles", "ProgramFiles(x86)"] {
+        if let Ok(program_files) = std::env::var(var) {
+            candidates.extend([
+                PathBuf::from(&program_files)
+                    .join("OpenAI")
+                    .join("Codex")
+                    .join("Codex.exe"),
+                PathBuf::from(&program_files)
+                    .join("Codex")
+                    .join("Codex.exe"),
+            ]);
+        }
+    }
+    candidates
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_codex_desktop_path(codex_desktop_path: &str) -> Option<PathBuf> {
+    let configured = codex_desktop_path.trim();
+    if !configured.is_empty() {
+        let path = PathBuf::from(configured);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    if let Some(path) = running_codex_path().filter(|path| path.exists()) {
+        return Some(path);
+    }
+    desktop_path_candidates()
+        .into_iter()
+        .find(|candidate| candidate.exists())
+}
+
+#[cfg(target_os = "windows")]
+fn shutdown_codex_desktop() -> Result<(), String> {
     Command::new("powershell")
         .args([
             "-NoProfile",
@@ -43,15 +134,50 @@ pub fn restart_codex_desktop(codex_desktop_path: &str, codex_home: &str) -> Resu
         ])
         .status()
         .map_err(|error| format!("Failed to request Codex Desktop shutdown: {error}"))?;
-
     thread::sleep(Duration::from_millis(1200));
-    Command::new(codex_desktop_path)
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn launch_codex_app_alias(codex_home: &str) -> Result<(), String> {
+    let status = Command::new("powershell")
+        .args(["-NoProfile", "-Command", "Start-Process Codex"])
         .env("CODEX_HOME", codex_home)
         .env_remove("WSL_DISTRO_NAME")
         .env_remove("WSL_INTEROP")
-        .spawn()
-        .map_err(|error| format!("Failed to launch Codex Desktop: {error}"))?;
-    Ok(())
+        .status()
+        .map_err(|error| format!("Failed to launch Codex app alias: {error}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(
+            "Codex Desktop 실행 파일을 자동으로 찾지 못했고 Codex app alias 실행도 실패했습니다."
+                .to_string(),
+        )
+    }
+}
+
+#[cfg(target_os = "windows")]
+pub fn restart_codex_desktop(codex_desktop_path: &str, codex_home: &str) -> Result<(), String> {
+    if codex_home.trim().is_empty() {
+        return Err("Codex profile home could not be resolved.".to_string());
+    }
+    ensure_codex_home_layout(codex_home)?;
+
+    let desktop_path = resolve_codex_desktop_path(codex_desktop_path);
+    shutdown_codex_desktop()?;
+
+    if let Some(desktop_path) = desktop_path {
+        Command::new(&desktop_path)
+            .env("CODEX_HOME", codex_home)
+            .env_remove("WSL_DISTRO_NAME")
+            .env_remove("WSL_INTEROP")
+            .spawn()
+            .map_err(|error| format!("Failed to launch Codex Desktop: {error}"))?;
+        return Ok(());
+    }
+
+    launch_codex_app_alias(codex_home)
 }
 
 #[cfg(not(target_os = "windows"))]

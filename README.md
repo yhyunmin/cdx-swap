@@ -33,6 +33,10 @@ npm run tauri:dev
 - Login and Logout run through the configured Codex CLI path. Run selects the
   profile, syncs that profile's auth token into the Windows Codex home, and
   restarts Codex Desktop with that profile's `CODEX_HOME`.
+- If the Desktop path is empty, cdx-swap tries the running Codex process path,
+  common Windows install paths, and the `Codex` app alias.
+- Optional SSH sync copies the updated Windows `.codex/auth.json` to
+  `~/.codex/auth.json` on the configured SSH host.
 
 ## Security First
 
