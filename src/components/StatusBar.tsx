@@ -1,4 +1,4 @@
-import { Check, RefreshCw, Settings, X } from "lucide-react";
+import { Check, Gem, RefreshCw, Settings, X } from "lucide-react";
 import { memo } from "react";
 import { formatRefreshTime } from "../lib/time";
 import type { ProfileUsage } from "../types/domain";
@@ -15,10 +15,15 @@ interface StatusBarProps {
 export const StatusBar = memo(function StatusBar({ activeProfile, lastUpdated, refreshing, settingsOpen, onRefresh, onToggleSettings }: StatusBarProps) {
   return (
     <header className="topbar">
-      <div className="status-line">
-        <span className="muted">현재상태:</span>
-        <strong>{activeProfile?.profileId ?? "선택 없음"}</strong>
-        {activeProfile && <Check size={16} />}
+      <div className="brand-block">
+        <div className="brand-mark" aria-hidden="true">
+          <Gem size={18} />
+        </div>
+        <div className="status-line">
+          <span className="muted">현재상태</span>
+          <strong>{activeProfile?.profileId ?? "선택 없음"}</strong>
+          {activeProfile && <Check size={15} />}
+        </div>
       </div>
       <div className="header-actions">
         <span className="refresh-label">갱신 {formatRefreshTime(lastUpdated)}</span>

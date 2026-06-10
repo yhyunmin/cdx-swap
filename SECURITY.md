@@ -16,6 +16,7 @@ Never commit or attach these files to issues, releases, screenshots, or support 
 - backup folders
 - SQLite state
 - crash dumps that may include process output
+- Windows code signing certificates, PFX files, passwords, or thumbprints from private release infrastructure
 
 ## Token Handling
 
@@ -29,6 +30,12 @@ Never commit or attach these files to issues, releases, screenshots, or support 
 cdx-swap does not modify Codex Desktop internal auth or state files.
 Profile switching changes the app's active profile and can optionally restart Codex Desktop, but Desktop login
 state may still require manual confirmation by the user.
+
+## Windows Code Signing
+
+SmartScreen reputation requires trusted Windows code signing. Release automation may use
+`WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`, `WINDOWS_CERTIFICATE_THUMBPRINT`, and
+`WINDOWS_TIMESTAMP_URL` secrets. Do not print or persist certificate contents in logs or repository files.
 
 ## Network Assumptions
 

@@ -9,6 +9,7 @@ Release builds are produced from `v*` tags. Download one of these artifacts from
 the GitHub Release page:
 
 - `cdx-swap_<version>_x64-setup.exe`
+- `cdx-swap_<version>_x64-update.msi`
 - `cdx-swap_<version>_x64-portable.zip`
 
 From source on Windows:
@@ -37,6 +38,18 @@ npm run tauri:dev
   common Windows install paths, and the `Codex` app alias.
 - Optional SSH sync copies the updated Windows `.codex/auth.json` to
   `~/.codex/auth.json` on the configured SSH host.
+
+## Windows Install and Updates
+
+- Releases publish both an NSIS `setup.exe` and an MSI `update.msi` artifact.
+- Use the MSI artifact for stable version-to-version updates. The MSI
+  `upgradeCode` is pinned in `tauri.conf.json` so future versions are treated as
+  the same app instead of duplicate installs.
+- Downgrades are blocked by the Windows bundler config.
+- Browser download SmartScreen warnings require trusted Windows code signing
+  reputation. GitHub Actions imports `WINDOWS_CERTIFICATE`,
+  `WINDOWS_CERTIFICATE_PASSWORD`, and `WINDOWS_CERTIFICATE_THUMBPRINT` secrets
+  when present; without those secrets the release is built unsigned.
 
 ## Security First
 

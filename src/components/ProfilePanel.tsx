@@ -1,4 +1,4 @@
-import { Eye, EyeOff, LogIn, LogOut, Play } from "lucide-react";
+import { BadgeCheck, Eye, EyeOff, LogIn, LogOut, Play } from "lucide-react";
 import { memo } from "react";
 import { displayAccount } from "../lib/app-model";
 import type { ActionKind, ProfileUsage } from "../types/domain";
@@ -36,12 +36,21 @@ export const ProfilePanel = memo(function ProfilePanel({
         {!loading && profiles.length === 0 && <p className="empty">프로필이 없습니다. 새 프로필 이름을 입력하고 Login을 누르세요.</p>}
         {profiles.map((profile) => {
           const hidden = hiddenProfileIds.includes(profile.profileId);
+          const active = profile.profileId === activeProfileId;
           return (
-            <article key={profile.profileId} className={`profile-card ${profile.profileId === activeProfileId ? "is-active" : ""}`}>
+            <article key={profile.profileId} className={`profile-card ${active ? "is-active" : ""}`}>
               <div className="profile-heading">
                 <button className="profile-main" type="button" onClick={() => onSelect(profile)}>
-                  <span>{profile.profileId}</span>
-                  {!hidden && <small>{displayAccount(profile.account, maskEmails)}</small>}
+                  <span className="profile-avatar" aria-hidden="true">
+                    {profile.profileId.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="profile-copy">
+                    <span className="profile-title">
+                      {profile.profileId}
+                      {active && <BadgeCheck size={15} />}
+                    </span>
+                    {!hidden && <small>{displayAccount(profile.account, maskEmails)}</small>}
+                  </span>
                 </button>
                 <button
                   className="icon-button icon-button--sm"
@@ -61,6 +70,13 @@ export const ProfilePanel = memo(function ProfilePanel({
                   {hidden ? <Eye size={15} /> : <EyeOff size={15} />}
                 </button>
               </div>
+              {!hidden && (
+                <div className="profile-metrics">
+                  {profile.plan && <span className="metric-chip">{profile.plan}</span>}
+                  <span className="metric-chip">5H {profile.fiveHourLeft == null ? "--" : `${profile.fiveHourLeft}%`}</span>
+                  <span className="metric-chip">Week {profile.weeklyLeft == null ? "--" : `${profile.weeklyLeft}%`}</span>
+                </div>
+              )}
               <div className="profile-actions">
                 <button type="button" onClick={() => onAction("login", profile.profileId)}>
                   <LogIn size={15} />

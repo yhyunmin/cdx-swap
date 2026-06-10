@@ -37,6 +37,41 @@ jobs:
       - run: npm ci
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Configure Windows code signing
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE) -or
+              [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD) -or
+              [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_THUMBPRINT)) {
+            Write-Host "Windows signing secrets are not configured. Building unsigned artifacts."
+            exit 0
+          }
+
+          New-Item -ItemType Directory -Force -Path certificate | Out-Null
+          Set-Content -Path certificate\certificate.base64.txt -Value $env:WINDOWS_CERTIFICATE
+          certutil -decode certificate\certificate.base64.txt certificate\certificate.pfx
+          $securePassword = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          Import-PfxCertificate -FilePath certificate\certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword | Out-Null
+
+          function Set-JsonProperty($Object, $Name, $Value) {
+            if ($Object.PSObject.Properties.Name -contains $Name) {
+              $Object.$Name = $Value
+            } else {
+              $Object | Add-Member -MemberType NoteProperty -Name $Name -Value $Value
+            }
+          }
+
+          $configPath = "src-tauri\tauri.conf.json"
+          $config = Get-Content $configPath -Raw | ConvertFrom-Json -Depth 100
+          Set-JsonProperty $config.bundle.windows "certificateThumbprint" $env:WINDOWS_CERTIFICATE_THUMBPRINT
+          Set-JsonProperty $config.bundle.windows "digestAlgorithm" "sha256"
+          Set-JsonProperty $config.bundle.windows "timestampUrl" $(if ([string]::IsNullOrWhiteSpace($env:WINDOWS_TIMESTAMP_URL)) { "http://timestamp.digicert.com" } else { $env:WINDOWS_TIMESTAMP_URL })
+          $config | ConvertTo-Json -Depth 100 | Set-Content $configPath
       - run: npm run tauri -- build --features tauri/custom-protocol
       - name: Prepare Windows artifacts
         shell: pwsh
@@ -47,6 +82,9 @@ jobs:
 
           $setup = Get-ChildItem "src-tauri\target\release\bundle\nsis" -Filter "*.exe" | Select-Object -First 1
           Copy-Item $setup.FullName "$out\cdx-swap_${version}_x64-setup.exe"
+
+          $msi = Get-ChildItem "src-tauri\target\release\bundle\msi" -Filter "*.msi" | Select-Object -First 1
+          Copy-Item $msi.FullName "$out\cdx-swap_${version}_x64-update.msi"
 
           $portable = "portable\cdx-swap"
           New-Item -ItemType Directory -Force -Path $portable | Out-Null

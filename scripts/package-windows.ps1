@@ -11,9 +11,9 @@ try {
   npm run tauri:build
 
   New-Item -ItemType Directory -Force -Path $DesktopOut | Out-Null
-  Get-ChildItem -Path "src-tauri\target\release\bundle\nsis" -Recurse -Include *.exe |
+  Get-ChildItem -Path "src-tauri\target\release\bundle\nsis", "src-tauri\target\release\bundle\msi" -Recurse -Include *.exe, *.msi |
     Copy-Item -Destination $DesktopOut -Force
-  Write-Host "Windows NSIS installer copied to $DesktopOut"
+  Write-Host "Windows installer artifacts copied to $DesktopOut"
 }
 finally {
   Pop-Location

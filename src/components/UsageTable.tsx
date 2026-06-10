@@ -1,5 +1,5 @@
 import { Eye, EyeOff, LogOut } from "lucide-react";
-import { memo } from "react";
+import { memo, type CSSProperties } from "react";
 import { displayAccount, isProfileHidden } from "../lib/app-model";
 import { formatResetDate } from "../lib/time";
 import type { AppConfig, ProfileUsage } from "../types/domain";
@@ -12,7 +12,15 @@ function quotaTone(value: number | null) {
 }
 
 const QuotaCell = memo(function QuotaCell({ value }: { value: number | null }) {
-  return <span className={`quota quota--${quotaTone(value)}`}>{value == null ? "--" : `${value}%`}</span>;
+  const percent = value ?? 0;
+  return (
+    <span className={`quota quota--${quotaTone(value)}`} style={{ "--quota-value": `${percent}%` } as CSSProperties}>
+      <span className="quota-track" aria-hidden="true">
+        <span />
+      </span>
+      <span className="quota-value">{value == null ? "--" : `${value}%`}</span>
+    </span>
+  );
 });
 
 interface UsageTableProps {

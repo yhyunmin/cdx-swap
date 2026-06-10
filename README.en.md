@@ -10,6 +10,7 @@ The architecture leaves room for a later macOS menu-bar build, but the current p
 Release artifacts are created by GitHub Actions when a `v*` tag is pushed:
 
 - `cdx-swap_<version>_x64-setup.exe`
+- `cdx-swap_<version>_x64-update.msi`
 - `cdx-swap_<version>_x64-portable.zip`
 
 Run from source on Windows:
@@ -34,7 +35,7 @@ Build a development-only Windows portable exe from Linux / WSL:
 ```
 
 The cross-build output is for development checks. Official distribution uses the GitHub Release NSIS
-installer and portable zip.
+installer, MSI update installer, and portable zip.
 
 ## What It Does
 
@@ -54,6 +55,18 @@ installer and portable zip.
 - Supports email masking, hidden profiles, optional session log rendering, and configurable refresh intervals.
 
 The Claude provider is currently a settings slot only. v1 does not query Claude usage.
+
+## Windows Install and Updates
+
+- Releases publish both an NSIS `setup.exe` and an MSI `update.msi` artifact.
+- Use the MSI artifact for stable version-to-version updates. The MSI
+  `upgradeCode` is pinned in `tauri.conf.json` so future versions are treated as
+  the same app instead of duplicate installs.
+- Downgrades are blocked by the Windows bundler config.
+- Browser download SmartScreen warnings require trusted Windows code signing
+  reputation. GitHub Actions imports `WINDOWS_CERTIFICATE`,
+  `WINDOWS_CERTIFICATE_PASSWORD`, and `WINDOWS_CERTIFICATE_THUMBPRINT` secrets
+  when present; without those secrets the release is built unsigned.
 
 ## Requirements
 
@@ -163,6 +176,7 @@ git push origin v0.1.0
 Uploaded files:
 
 - `cdx-swap_0.1.0_x64-setup.exe`
+- `cdx-swap_0.1.0_x64-update.msi`
 - `cdx-swap_0.1.0_x64-portable.zip`
 
 `.cmd` / `.ps1` installer scripts are not distributed as release artifacts.
