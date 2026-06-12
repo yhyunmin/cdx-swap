@@ -6,6 +6,8 @@ import type {
   ActionKind,
   ActionSession,
   AppConfig,
+  ClaudeLoginStart,
+  ClaudeUsageStatus,
   CurrentAccountStatus,
   ProfileRecord,
   ProfileUsage,
@@ -25,6 +27,10 @@ interface NativeApi {
   sendActionInput(sessionId: string, input: string): Promise<void>;
   getActionSession(sessionId: string): Promise<ActionSession | null>;
   switchProfile(profileId: string, config: AppConfig): Promise<SwitchResult>;
+  startClaudeLogin(): Promise<ClaudeLoginStart>;
+  finishClaudeLogin(code: string): Promise<ClaudeUsageStatus>;
+  logoutClaude(): Promise<ClaudeUsageStatus>;
+  getClaudeUsage(): Promise<ClaudeUsageStatus>;
   setTrayTooltip(label: string): Promise<void>;
   updateTrayMenuState(menuState: TrayMenuState): Promise<void>;
   onTrayAction(handler: (payload: TrayActionPayload) => void): Promise<UnlistenFn>;
@@ -81,6 +87,48 @@ const browserApi: NativeApi = {
   async switchProfile(profileId) {
     return { activeProfileId: profileId, desktopRestarted: false, message: `${profileId} 선택됨` };
   },
+  async startClaudeLogin() {
+    return { ok: true, authUrl: "https://claude.ai/oauth/authorize", pendingPath: "~/.cdx/claude_oauth_pending.json" };
+  },
+  async finishClaudeLogin() {
+    return {
+      ok: true,
+      authenticated: true,
+      source: "anthropic_oauth_usage",
+      credentialSource: "preview",
+      fiveHour: { utilization: 42, resetsAt: new Date(Date.now() + 90 * 60 * 1000).toISOString() },
+      sevenDay: { utilization: 64, resetsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() },
+      error: null,
+      message: null,
+      fetchedAt: new Date().toISOString(),
+    };
+  },
+  async logoutClaude() {
+    return {
+      ok: true,
+      authenticated: false,
+      source: "anthropic_oauth_usage",
+      credentialSource: null,
+      fiveHour: null,
+      sevenDay: null,
+      error: "login_required",
+      message: "Claude 로그인이 필요합니다.",
+      fetchedAt: new Date().toISOString(),
+    };
+  },
+  async getClaudeUsage() {
+    return {
+      ok: true,
+      authenticated: true,
+      source: "anthropic_oauth_usage",
+      credentialSource: "preview",
+      fiveHour: { utilization: 42, resetsAt: new Date(Date.now() + 90 * 60 * 1000).toISOString() },
+      sevenDay: { utilization: 64, resetsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() },
+      error: null,
+      message: null,
+      fetchedAt: new Date().toISOString(),
+    };
+  },
   async setTrayTooltip() {},
   async updateTrayMenuState() {},
   async onTrayAction() {
@@ -103,6 +151,10 @@ const tauriApi: NativeApi = {
   sendActionInput: (sessionId, input) => invoke("send_action_input", { sessionId, input }),
   getActionSession: (sessionId) => invoke("get_action_session", { sessionId }),
   switchProfile: (profileId, config) => invoke("switch_profile", { profileId, config }),
+  startClaudeLogin: () => invoke("start_claude_login"),
+  finishClaudeLogin: (code) => invoke("finish_claude_login", { code }),
+  logoutClaude: () => invoke("logout_claude"),
+  getClaudeUsage: () => invoke("get_claude_usage"),
   setTrayTooltip: (label) => invoke("set_tray_tooltip", { label }),
   updateTrayMenuState: (menuState) => invoke("update_tray_menu_state", { menuState }),
   onTrayAction: (handler) => listen<TrayActionPayload>("tray-action", (event) => handler(event.payload)),

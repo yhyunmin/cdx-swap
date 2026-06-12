@@ -29,6 +29,29 @@ export interface ProfileUsage {
   error: string | null;
 }
 
+export interface ClaudeUsageWindow {
+  utilization: number | null;
+  resetsAt: string | null;
+}
+
+export interface ClaudeUsageStatus {
+  ok: boolean;
+  authenticated: boolean;
+  source: string;
+  credentialSource: string | null;
+  fiveHour: ClaudeUsageWindow | null;
+  sevenDay: ClaudeUsageWindow | null;
+  error: string | null;
+  message: string | null;
+  fetchedAt: string;
+}
+
+export interface ClaudeLoginStart {
+  ok: boolean;
+  authUrl: string;
+  pendingPath: string;
+}
+
 export interface CurrentAccountStatus {
   account: string | null;
   accountId: string | null;

@@ -114,6 +114,36 @@ pub struct ProfileUsage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ClaudeUsageWindow {
+    pub utilization: Option<f64>,
+    #[serde(alias = "resets_at")]
+    pub resets_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaudeUsageStatus {
+    pub ok: bool,
+    pub authenticated: bool,
+    pub source: String,
+    pub credential_source: Option<String>,
+    pub five_hour: Option<ClaudeUsageWindow>,
+    pub seven_day: Option<ClaudeUsageWindow>,
+    pub error: Option<String>,
+    pub message: Option<String>,
+    pub fetched_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaudeLoginStart {
+    pub ok: bool,
+    pub auth_url: String,
+    pub pending_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CurrentAccountStatus {
     pub account: Option<String>,
     pub account_id: Option<String>,

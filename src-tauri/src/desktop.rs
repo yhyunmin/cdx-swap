@@ -74,10 +74,6 @@ fn desktop_path_candidates() -> Vec<PathBuf> {
                 .join("OpenAI")
                 .join("Codex")
                 .join("Codex.exe"),
-            PathBuf::from(&local_app_data)
-                .join("Microsoft")
-                .join("WindowsApps")
-                .join("Codex.exe"),
         ]);
     }
     if let Ok(user_profile) = std::env::var("USERPROFILE") {
@@ -108,20 +104,31 @@ fn desktop_path_candidates() -> Vec<PathBuf> {
 }
 
 #[cfg(target_os = "windows")]
+fn looks_like_codex_cli(path: &Path) -> bool {
+    let normalized = path
+        .to_string_lossy()
+        .replace('/', "\\")
+        .to_ascii_lowercase();
+    normalized.contains("\\bin\\codex.exe") || normalized.contains("\\windowsapps\\codex.exe")
+}
+
+#[cfg(target_os = "windows")]
 fn resolve_codex_desktop_path(codex_desktop_path: &str) -> Option<PathBuf> {
     let configured = codex_desktop_path.trim();
     if !configured.is_empty() {
         let path = PathBuf::from(configured);
-        if path.exists() {
+        if path.exists() && !looks_like_codex_cli(&path) {
             return Some(path);
         }
     }
-    if let Some(path) = running_codex_path().filter(|path| path.exists()) {
+    if let Some(path) =
+        running_codex_path().filter(|path| path.exists() && !looks_like_codex_cli(path))
+    {
         return Some(path);
     }
     desktop_path_candidates()
         .into_iter()
-        .find(|candidate| candidate.exists())
+        .find(|candidate| candidate.exists() && !looks_like_codex_cli(candidate))
 }
 
 #[cfg(target_os = "windows")]
@@ -139,19 +146,25 @@ fn shutdown_codex_desktop() -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-fn launch_codex_app_alias(codex_home: &str) -> Result<(), String> {
+fn launch_codex_start_menu_app() -> Result<(), String> {
+    let script = r#"
+$app = Get-StartApps | Where-Object {
+  $_.AppID -and ($_.Name -eq 'Codex' -or $_.Name -eq 'OpenAI Codex' -or $_.Name -eq 'Codex Desktop' -or $_.Name -like '*Codex*')
+} | Select-Object -First 1
+if (-not $app) { exit 2 }
+Start-Process ("shell:AppsFolder\" + $app.AppID)
+"#;
     let status = Command::new("powershell")
-        .args(["-NoProfile", "-Command", "Start-Process Codex"])
-        .env("CODEX_HOME", codex_home)
+        .args(["-NoProfile", "-Command", script])
         .env_remove("WSL_DISTRO_NAME")
         .env_remove("WSL_INTEROP")
         .status()
-        .map_err(|error| format!("Failed to launch Codex app alias: {error}"))?;
+        .map_err(|error| format!("Failed to launch Codex Desktop from Start menu: {error}"))?;
     if status.success() {
         Ok(())
     } else {
         Err(
-            "Codex Desktop 실행 파일을 자동으로 찾지 못했고 Codex app alias 실행도 실패했습니다."
+            "Codex Desktop 실행 파일 또는 시작 메뉴 앱을 자동으로 찾지 못했습니다. Codex Desktop 실행 파일 경로를 설정하세요."
                 .to_string(),
         )
     }
@@ -169,7 +182,6 @@ pub fn restart_codex_desktop(codex_desktop_path: &str, codex_home: &str) -> Resu
 
     if let Some(desktop_path) = desktop_path {
         Command::new(&desktop_path)
-            .env("CODEX_HOME", codex_home)
             .env_remove("WSL_DISTRO_NAME")
             .env_remove("WSL_INTEROP")
             .spawn()
@@ -177,7 +189,7 @@ pub fn restart_codex_desktop(codex_desktop_path: &str, codex_home: &str) -> Resu
         return Ok(());
     }
 
-    launch_codex_app_alias(codex_home)
+    launch_codex_start_menu_app()
 }
 
 #[cfg(not(target_os = "windows"))]

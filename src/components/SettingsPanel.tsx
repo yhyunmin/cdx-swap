@@ -1,15 +1,42 @@
-import { Cloud, Eye, RefreshCw, Save, ScrollText, Server, Shield, Terminal } from "lucide-react";
+import { Cloud, Eye, LogIn, LogOut, RefreshCw, Save, ScrollText, Server, Shield, Terminal } from "lucide-react";
 import { memo } from "react";
-import type { AppConfig, UpstreamStatus } from "../types/domain";
+import { formatResetDate } from "../lib/time";
+import type { AppConfig, ClaudeUsageStatus, UpstreamStatus } from "../types/domain";
 
 interface SettingsPanelProps {
   config: AppConfig;
+  claudeUsage: ClaudeUsageStatus | null;
+  claudeOAuthCode: string;
+  claudeBusy: boolean;
   upstream: UpstreamStatus | null;
   onChange: (config: AppConfig) => void;
+  onClaudeOAuthCodeChange: (code: string) => void;
+  onClaudeLoginStart: () => void;
+  onClaudeLoginFinish: () => void;
+  onClaudeLogout: () => void;
+  onRefreshClaudeUsage: () => void;
   onSave: () => void;
 }
 
-export const SettingsPanel = memo(function SettingsPanel({ config, upstream, onChange, onSave }: SettingsPanelProps) {
+function usageText(value: number | null | undefined) {
+  if (value == null) return "--";
+  return `${Math.round(value)}%`;
+}
+
+export const SettingsPanel = memo(function SettingsPanel({
+  config,
+  claudeUsage,
+  claudeOAuthCode,
+  claudeBusy,
+  upstream,
+  onChange,
+  onClaudeOAuthCodeChange,
+  onClaudeLoginStart,
+  onClaudeLoginFinish,
+  onClaudeLogout,
+  onRefreshClaudeUsage,
+  onSave,
+}: SettingsPanelProps) {
   return (
     <section className="settings-panel">
       <div className="settings-group">
@@ -113,14 +140,45 @@ export const SettingsPanel = memo(function SettingsPanel({ config, upstream, onC
           <span>Claude 사용량 설정</span>
         </label>
         {config.claudeEnabled && (
-          <label>
-            <span>Claude CLI 경로</span>
-            <input
-              value={config.claudeCliPath}
-              onChange={(event) => onChange({ ...config, claudeCliPath: event.target.value })}
-              placeholder="v1에서는 저장만 하고 조회는 비활성"
-            />
-          </label>
+          <div className="claude-settings">
+            <div className="provider-row">
+              <strong>{claudeUsage?.authenticated ? "Claude 연결됨" : "Claude 로그인 필요"}</strong>
+              <small>{claudeUsage?.message ?? claudeUsage?.error ?? "anthropic_oauth_usage"}</small>
+            </div>
+            {claudeUsage?.authenticated && (
+              <div className="provider-metrics">
+                <span>5H {usageText(claudeUsage.fiveHour?.utilization)}</span>
+                <span>Week {usageText(claudeUsage.sevenDay?.utilization)}</span>
+                <small>{formatResetDate(claudeUsage.fiveHour?.resetsAt ?? claudeUsage.sevenDay?.resetsAt ?? null)}</small>
+              </div>
+            )}
+            <div className="settings-actions">
+              <button type="button" onClick={onRefreshClaudeUsage} disabled={claudeBusy}>
+                <RefreshCw size={15} />
+                조회
+              </button>
+              <button type="button" onClick={onClaudeLoginStart} disabled={claudeBusy}>
+                <LogIn size={15} />
+                로그인
+              </button>
+              <button type="button" onClick={onClaudeLogout} disabled={claudeBusy}>
+                <LogOut size={15} />
+                로그아웃
+              </button>
+            </div>
+            <label>
+              <span>OAuth code</span>
+              <input
+                value={claudeOAuthCode}
+                onChange={(event) => onClaudeOAuthCodeChange(event.target.value)}
+                placeholder="Claude 브라우저 로그인 후 code 붙여넣기"
+              />
+            </label>
+            <button className="primary-button" type="button" onClick={onClaudeLoginFinish} disabled={claudeBusy}>
+              <Save size={15} />
+              완료
+            </button>
+          </div>
         )}
       </div>
 

@@ -1,4 +1,5 @@
 mod actions;
+mod claude;
 mod config;
 mod desktop;
 mod domain;
@@ -8,6 +9,7 @@ mod upstream;
 mod usage;
 
 use actions::{get_action_session, send_action_input, start_action_session, ActionStore};
+use claude::{finish_claude_login, get_claude_usage, logout_claude, start_claude_login};
 use config::{get_app_config, save_app_config};
 use desktop::restart_codex_desktop;
 use domain::{AppConfig, SwitchResult};
@@ -62,6 +64,10 @@ pub fn run() {
             start_action_session,
             send_action_input,
             get_action_session,
+            start_claude_login,
+            finish_claude_login,
+            logout_claude,
+            get_claude_usage,
             switch_profile,
             set_tray_tooltip,
             update_tray_menu_state,

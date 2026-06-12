@@ -197,7 +197,7 @@ fn sync_default_auth_to_ssh_host(host: &str) -> Result<(), String> {
         .wait_with_output()
         .map_err(|error| format!("Failed to wait for ssh auth sync: {error}"))?;
     if output.status.success() {
-        return Ok(());
+        return restart_ssh_codex_runtime(host);
     }
 
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -205,6 +205,36 @@ fn sync_default_auth_to_ssh_host(host: &str) -> Result<(), String> {
         "SSH Codex auth sync failed.".to_string()
     } else {
         format!("SSH Codex auth sync failed: {stderr}")
+    })
+}
+
+fn restart_ssh_codex_runtime(host: &str) -> Result<(), String> {
+    let mut command = Command::new("ssh");
+    command
+        .args([
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=8",
+            host,
+            "if command -v pkill >/dev/null 2>&1; then pkill -TERM -f 'codex app-server' 2>/dev/null || true; pkill -TERM -f 'codex.*proxy' 2>/dev/null || true; pkill -TERM -f '/usr/local/bin/codex.*app-server' 2>/dev/null || true; fi",
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped());
+    hide_console_window(&mut command);
+
+    let output = command
+        .output()
+        .map_err(|error| format!("Failed to restart SSH Codex runtime: {error}"))?;
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    Err(if stderr.is_empty() {
+        "SSH Codex runtime restart failed.".to_string()
+    } else {
+        format!("SSH Codex runtime restart failed: {stderr}")
     })
 }
 
@@ -344,6 +374,64 @@ pub fn resolve_profile(profile_id: &str) -> Result<Option<ProfileRecord>, String
     Ok(list_profiles()?
         .into_iter()
         .find(|profile| profile.id == profile_id))
+}
+
+fn legacy_profile_id_is_safe(id: &str) -> bool {
+    id.strip_prefix("codex")
+        .map(|suffix| !suffix.is_empty() && suffix.chars().all(|char| char.is_ascii_digit()))
+        .unwrap_or(false)
+}
+
+fn delete_target_allowed(
+    profile: &ProfileRecord,
+    target: &Path,
+    modern_root: &Path,
+    home: &Path,
+) -> bool {
+    let Some(file_name) = target.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    match profile.source {
+        ProfileSource::Modern => {
+            target.parent() == Some(modern_root) && file_name == profile.id.as_str()
+        }
+        ProfileSource::Legacy => {
+            target.parent() == Some(home)
+                && file_name == format!(".{}", profile.id)
+                && legacy_profile_id_is_safe(&profile.id)
+        }
+    }
+}
+
+pub fn delete_profile(profile: &ProfileRecord) -> Result<(), String> {
+    let target = PathBuf::from(&profile.home_path);
+    if !target.exists() {
+        return Ok(());
+    }
+    let target = target
+        .canonicalize()
+        .map_err(|error| format!("Failed to resolve profile path: {error}"))?;
+    let home = home_dir()?
+        .canonicalize()
+        .map_err(|error| format!("Failed to resolve home directory: {error}"))?;
+    let allowed = match profile.source {
+        ProfileSource::Modern => {
+            let modern_root = profiles_root()?
+                .canonicalize()
+                .map_err(|error| format!("Failed to resolve profiles root: {error}"))?;
+            delete_target_allowed(profile, &target, &modern_root, &home)
+        }
+        ProfileSource::Legacy => delete_target_allowed(profile, &target, Path::new(""), &home),
+    };
+
+    if !allowed {
+        return Err(format!(
+            "Refusing to delete unexpected profile path: {}",
+            target.display()
+        ));
+    }
+
+    fs::remove_dir_all(&target).map_err(|error| format!("Failed to delete profile: {error}"))
 }
 
 #[tauri::command]

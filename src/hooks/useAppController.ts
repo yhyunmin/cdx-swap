@@ -10,7 +10,16 @@ import {
   trayMenuState,
 } from "../lib/app-model";
 import { native } from "../lib/native";
-import type { ActionKind, ActionSession, AppConfig, CurrentAccountStatus, ProfileUsage, TrayActionPayload, UpstreamStatus } from "../types/domain";
+import type {
+  ActionKind,
+  ActionSession,
+  AppConfig,
+  ClaudeUsageStatus,
+  CurrentAccountStatus,
+  ProfileUsage,
+  TrayActionPayload,
+  UpstreamStatus,
+} from "../types/domain";
 
 type PanelView = "dashboard" | "settings";
 
@@ -28,6 +37,9 @@ export function useAppController() {
   const [session, setSession] = useState<ActionSession | null>(null);
   const [upstream, setUpstream] = useState<UpstreamStatus | null>(null);
   const [currentAccountStatus, setCurrentAccountStatus] = useState<CurrentAccountStatus | null>(null);
+  const [claudeUsage, setClaudeUsage] = useState<ClaudeUsageStatus | null>(null);
+  const [claudeOAuthCode, setClaudeOAuthCode] = useState("");
+  const [claudeBusy, setClaudeBusy] = useState(false);
   const [newProfileId, setNewProfileId] = useState("work");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -97,13 +109,28 @@ export function useAppController() {
       setRefreshing(true);
       setError(null);
       try {
+        const shouldFetchClaude = configRef.current.claudeEnabled;
         const [rows, currentStatus] = await Promise.all([
           native.listProfileUsage(),
           native.getCurrentAccountStatus().catch(() => null),
         ]);
+        const nextClaudeUsage = shouldFetchClaude
+          ? await native.getClaudeUsage().catch((err) => ({
+              ok: false,
+              authenticated: false,
+              source: "anthropic_oauth_usage",
+              credentialSource: null,
+              fiveHour: null,
+              sevenDay: null,
+              error: "usage_request_failed",
+              message: String(err),
+              fetchedAt: new Date().toISOString(),
+            }))
+          : null;
         profilesRef.current = rows;
         setProfiles(rows);
         setCurrentAccountStatus(currentStatus);
+        setClaudeUsage(nextClaudeUsage);
         setLastUpdated(new Date().toISOString());
         notifyLowQuota(rows);
         await publishTrayState(configRef.current, rows);
@@ -136,12 +163,13 @@ export function useAppController() {
       await saveConfig(draftConfig);
       toast.success("설정을 저장했습니다.");
       startTransition(() => setView("dashboard"));
+      void refreshUsage();
     } catch (err) {
       const message = String(err);
       setError(message);
       toast.error(message);
     }
-  }, [draftConfig, saveConfig]);
+  }, [draftConfig, refreshUsage, saveConfig]);
 
   const selectProfile = useCallback(
     async (profile: ProfileUsage, confirmed = false, forceRestart = false) => {
@@ -247,6 +275,77 @@ export function useAppController() {
     [session],
   );
 
+  const refreshClaudeUsage = useCallback(async () => {
+    try {
+      setClaudeBusy(true);
+      const usage = await native.getClaudeUsage();
+      setClaudeUsage(usage);
+      if (!usage.ok) {
+        toast.error(usage.message ?? "Claude 사용량 조회 실패");
+      }
+    } catch (err) {
+      const message = String(err);
+      setError(message);
+      toast.error(message);
+    } finally {
+      setClaudeBusy(false);
+    }
+  }, []);
+
+  const startClaudeLogin = useCallback(async () => {
+    try {
+      setClaudeBusy(true);
+      await native.startClaudeLogin();
+      toast.message("Claude 로그인 창을 열었습니다.");
+    } catch (err) {
+      const message = String(err);
+      setError(message);
+      toast.error(message);
+    } finally {
+      setClaudeBusy(false);
+    }
+  }, []);
+
+  const finishClaudeLogin = useCallback(async () => {
+    const code = claudeOAuthCode.trim();
+    if (!code) {
+      toast.error("Claude OAuth code가 필요합니다.");
+      return;
+    }
+    try {
+      setClaudeBusy(true);
+      const usage = await native.finishClaudeLogin(code);
+      setClaudeUsage(usage);
+      setClaudeOAuthCode("");
+      if (usage.authenticated) {
+        toast.success("Claude 로그인 완료");
+      } else {
+        toast.error(usage.message ?? "Claude 로그인 확인 실패");
+      }
+    } catch (err) {
+      const message = String(err);
+      setError(message);
+      toast.error(message);
+    } finally {
+      setClaudeBusy(false);
+    }
+  }, [claudeOAuthCode]);
+
+  const logoutClaude = useCallback(async () => {
+    try {
+      setClaudeBusy(true);
+      const usage = await native.logoutClaude();
+      setClaudeUsage(usage);
+      toast.success("Claude 로그아웃 완료");
+    } catch (err) {
+      const message = String(err);
+      setError(message);
+      toast.error(message);
+    } finally {
+      setClaudeBusy(false);
+    }
+  }, []);
+
   const toggleProfileVisibility = useCallback(
     async (profileId: string) => {
       try {
@@ -351,6 +450,9 @@ export function useAppController() {
     session: visibleSession,
     upstream,
     currentAccountStatus,
+    claudeUsage,
+    claudeOAuthCode,
+    claudeBusy,
     selected,
     newProfileId,
     loading,
@@ -364,11 +466,16 @@ export function useAppController() {
     toggleSettingsView,
     setDraftConfig,
     setNewProfileId,
+    setClaudeOAuthCode,
     refreshUsage,
+    refreshClaudeUsage,
     saveSettings,
     selectProfile,
     startAction,
     sendSessionInput,
+    startClaudeLogin,
+    finishClaudeLogin,
+    logoutClaude,
     toggleProfileVisibility,
     hideWindow: native.hideWindow,
     startWindowDrag: native.startWindowDrag,

@@ -21,7 +21,8 @@
 .new-profile button,
 .primary-button,
 .danger-button,
-.modal-actions button {
+.modal-actions button,
+.settings-actions button {
   min-height: 32px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
@@ -37,7 +38,8 @@
 .icon-button:hover,
 .profile-actions button:hover,
 .new-profile button:hover,
-.modal-actions button:hover {
+.modal-actions button:hover,
+.settings-actions button:hover {
   background: var(--color-surface-soft);
   border-color: rgba(33, 42, 36, 0.26);
   box-shadow: 0 6px 16px rgba(31, 40, 34, 0.08);
@@ -48,7 +50,8 @@
 .new-profile button:active,
 .primary-button:active,
 .danger-button:active,
-.modal-actions button:active {
+.modal-actions button:active,
+.settings-actions button:active {
   transform: translateY(1px);
 }
 
@@ -57,7 +60,8 @@
 .new-profile button:focus-visible,
 .primary-button:focus-visible,
 .danger-button:focus-visible,
-.modal-actions button:focus-visible {
+.modal-actions button:focus-visible,
+.settings-actions button:focus-visible {
   outline: 2px solid rgba(234, 60, 89, 0.45);
   outline-offset: 2px;
 }
@@ -155,14 +159,16 @@
 .profile-actions,
 .new-profile,
 .session-input,
-.modal-actions {
+.modal-actions,
+.settings-actions {
   display: flex;
   gap: var(--space-2);
 }
 
 .profile-actions button,
 .new-profile button,
-.primary-button {
+.primary-button,
+.settings-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -179,6 +185,11 @@
 
 .profile-actions button {
   min-width: 0;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 .profile-metrics {
@@ -267,6 +278,39 @@ input:focus {
   color: var(--color-muted);
 }
 
+.claude-settings {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.settings-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-actions button {
+  min-width: 0;
+  padding: 6px 8px;
+}
+
+.provider-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.provider-metrics small {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
 .usage-table {
   display: grid;
   gap: 4px;
@@ -286,6 +330,16 @@ input:focus {
   min-height: 42px;
   padding: 6px 4px;
   border-radius: var(--radius-sm);
+}
+
+.usage-row--claude {
+  grid-template-columns: minmax(0, 1fr) 82px 82px;
+}
+
+.usage-row--claude div strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .usage-row:not(.usage-row--head):hover {

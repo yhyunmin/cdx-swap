@@ -1,5 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import { useCallback } from "react";
+import { ClaudeUsagePanel } from "../components/ClaudeUsagePanel";
 import { PanelChrome } from "../components/PanelChrome";
 import { ProfilePanel } from "../components/ProfilePanel";
 import { SessionPanel } from "../components/SessionPanel";
@@ -17,6 +18,22 @@ export function TrayPanel(controller: AppController) {
   const handleSaveSettings = useCallback(() => {
     void controller.saveSettings();
   }, [controller.saveSettings]);
+
+  const handleRefreshClaudeUsage = useCallback(() => {
+    void controller.refreshClaudeUsage();
+  }, [controller.refreshClaudeUsage]);
+
+  const handleClaudeLoginStart = useCallback(() => {
+    void controller.startClaudeLogin();
+  }, [controller.startClaudeLogin]);
+
+  const handleClaudeLoginFinish = useCallback(() => {
+    void controller.finishClaudeLogin();
+  }, [controller.finishClaudeLogin]);
+
+  const handleClaudeLogout = useCallback(() => {
+    void controller.logoutClaude();
+  }, [controller.logoutClaude]);
 
   const handleSelectProfile = useCallback(
     (profile: Parameters<AppController["selectProfile"]>[0]) => {
@@ -93,8 +110,16 @@ export function TrayPanel(controller: AppController) {
       {controller.view === "settings" ? (
         <SettingsPanel
           config={controller.draftConfig}
+          claudeUsage={controller.claudeUsage}
+          claudeOAuthCode={controller.claudeOAuthCode}
+          claudeBusy={controller.claudeBusy}
           upstream={controller.upstream}
           onChange={controller.setDraftConfig}
+          onClaudeOAuthCodeChange={controller.setClaudeOAuthCode}
+          onClaudeLoginStart={handleClaudeLoginStart}
+          onClaudeLoginFinish={handleClaudeLoginFinish}
+          onClaudeLogout={handleClaudeLogout}
+          onRefreshClaudeUsage={handleRefreshClaudeUsage}
           onSave={handleSaveSettings}
         />
       ) : (
@@ -119,6 +144,9 @@ export function TrayPanel(controller: AppController) {
             onToggleHidden={handleToggleHidden}
             onLogout={handleLogout}
           />
+          {controller.config.claudeEnabled && (
+            <ClaudeUsagePanel usage={controller.claudeUsage} refreshing={controller.claudeBusy} onRefresh={handleRefreshClaudeUsage} />
+          )}
         </>
       )}
 

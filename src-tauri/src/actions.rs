@@ -1,6 +1,6 @@
 use crate::{
     domain::{ActionKind, ActionSession, ActionStatus, AppConfig},
-    profiles::{ensure_profile, resolve_profile},
+    profiles::{delete_profile, ensure_profile, resolve_profile},
 };
 use std::{
     collections::HashMap,
@@ -227,6 +227,7 @@ pub fn start_action_session(
     let sessions = Arc::clone(&store.sessions);
     let inputs = Arc::clone(&store.inputs);
     let wait_id = id.clone();
+    let wait_profile = profile.clone();
     thread::spawn(move || {
         let status = child.wait();
         if let Ok(mut inputs) = inputs.lock() {
@@ -235,6 +236,20 @@ pub fn start_action_session(
         update_session(&sessions, &wait_id, |session| match status {
             Ok(status) => {
                 let code = status.code().unwrap_or(1);
+                if status.success() && matches!(kind, ActionKind::Logout) {
+                    if let Err(error) = delete_profile(&wait_profile) {
+                        session.status = ActionStatus::Failed;
+                        session.exit_code = Some(1);
+                        session.finished_at = Some(now_label());
+                        session.message = error.clone();
+                        session.recent_output = trim_output({
+                            let mut output = session.recent_output.clone();
+                            output.push(error);
+                            output
+                        });
+                        return;
+                    }
+                }
                 session.status = if status.success() {
                     ActionStatus::Succeeded
                 } else {
