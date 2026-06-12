@@ -228,7 +228,9 @@ fn random_token() -> String {
             "{}:{}:{}",
             now_secs(),
             std::process::id(),
-            home_dir().map_or_default(|path| path.display().to_string())
+            home_dir()
+                .map(|path| path.display().to_string())
+                .unwrap_or_default()
         );
         bytes = sha256(fallback.as_bytes());
     }
