@@ -548,6 +548,25 @@ pub fn resolve_profile(profile_id: &str) -> Result<Option<ProfileRecord>, String
         .find(|profile| profile.id == profile_id))
 }
 
+fn validate_profile_id(id: &str) -> Result<String, String> {
+    let id = id.trim();
+    if id.is_empty() {
+        return Err("Profile id is required.".to_string());
+    }
+    if id == "." || id == ".." || id.contains("..") {
+        return Err("Profile id cannot contain path traversal.".to_string());
+    }
+    if id
+        .chars()
+        .any(|char| matches!(char, '\\' | '/' | ':' | '*' | '?' | '"' | '<' | '>' | '|'))
+    {
+        return Err(
+            "Profile id cannot contain path separators or reserved characters.".to_string(),
+        );
+    }
+    Ok(id.to_string())
+}
+
 fn legacy_profile_id_is_safe(id: &str) -> bool {
     id.strip_prefix("codex")
         .map(|suffix| !suffix.is_empty() && suffix.chars().all(|char| char.is_ascii_digit()))
@@ -608,17 +627,68 @@ pub fn delete_profile(profile: &ProfileRecord) -> Result<(), String> {
 
 #[tauri::command]
 pub fn ensure_profile(profile_id: String) -> Result<ProfileRecord, String> {
-    let id = profile_id.trim();
-    if id.is_empty() {
-        return Err("Profile id is required.".to_string());
-    }
-    let home_path = profiles_root()?.join(id);
+    let id = validate_profile_id(&profile_id)?;
+    let home_path = profiles_root()?.join(&id);
     fs::create_dir_all(&home_path).map_err(|error| format!("Failed to create profile: {error}"))?;
     Ok(ProfileRecord {
-        id: id.to_string(),
+        id,
         home_path: home_path.to_string_lossy().to_string(),
         source: ProfileSource::Modern,
         auth: read_auth_summary(&home_path),
+    })
+}
+
+#[tauri::command]
+pub fn rename_profile(
+    profile_id: String,
+    next_profile_id: String,
+) -> Result<ProfileRecord, String> {
+    let current_id = validate_profile_id(&profile_id)?;
+    let next_id = validate_profile_id(&next_profile_id)?;
+    if current_id == next_id {
+        return resolve_profile(&current_id)?
+            .ok_or_else(|| format!("Unknown profile: {current_id}"));
+    }
+    if resolve_profile(&next_id)?.is_some() {
+        return Err(format!("Profile already exists: {next_id}"));
+    }
+
+    let profile =
+        resolve_profile(&current_id)?.ok_or_else(|| format!("Unknown profile: {current_id}"))?;
+    let source = PathBuf::from(&profile.home_path);
+    if !source.exists() {
+        return Err(format!("Profile path does not exist: {}", source.display()));
+    }
+    let source = source
+        .canonicalize()
+        .map_err(|error| format!("Failed to resolve profile path: {error}"))?;
+    let home = home_dir()?
+        .canonicalize()
+        .map_err(|error| format!("Failed to resolve home directory: {error}"))?;
+    let modern_root = profiles_root()?;
+    fs::create_dir_all(&modern_root)
+        .map_err(|error| format!("Failed to create profiles root: {error}"))?;
+    let modern_root = modern_root
+        .canonicalize()
+        .map_err(|error| format!("Failed to resolve profiles root: {error}"))?;
+    let allowed = delete_target_allowed(&profile, &source, &modern_root, &home);
+    if !allowed {
+        return Err(format!(
+            "Refusing to rename unexpected profile path: {}",
+            source.display()
+        ));
+    }
+
+    let target = modern_root.join(&next_id);
+    if target.exists() {
+        return Err(format!("Profile path already exists: {}", target.display()));
+    }
+    fs::rename(&source, &target).map_err(|error| format!("Failed to rename profile: {error}"))?;
+    Ok(ProfileRecord {
+        id: next_id,
+        home_path: target.to_string_lossy().to_string(),
+        source: ProfileSource::Modern,
+        auth: read_auth_summary(&target),
     })
 }
 

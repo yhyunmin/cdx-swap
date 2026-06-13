@@ -16,8 +16,8 @@ use domain::{
     AppConfig, DesktopRestartResult, SshSyncResult, SshSyncStage, SwitchResult, WindowsSwitchResult,
 };
 use profiles::{
-    ensure_profile, get_current_account_status, list_profile_usage, resolve_profile,
-    sync_default_auth_to_ssh, sync_profile_auth_to_default_home,
+    ensure_profile, get_current_account_status, list_profile_usage, rename_profile,
+    resolve_profile, sync_default_auth_to_ssh, sync_profile_auth_to_default_home,
 };
 use tray::{set_tray_tooltip, setup_tray, update_tray_menu_state, TrayStore};
 use upstream::check_cdx_upstream;
@@ -108,6 +108,7 @@ pub fn run() {
             save_app_config,
             list_profile_usage,
             ensure_profile,
+            rename_profile,
             get_current_account_status,
             start_action_session,
             send_action_input,
