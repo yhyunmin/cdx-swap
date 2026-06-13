@@ -13,6 +13,7 @@ const nativeMock = vi.hoisted(() => ({
   sendActionInput: vi.fn(),
   getActionSession: vi.fn(),
   switchProfile: vi.fn(),
+  retrySshCodexSync: vi.fn(),
   setTrayTooltip: vi.fn(),
   updateTrayMenuState: vi.fn(),
   onTrayAction: vi.fn(),
@@ -44,7 +45,14 @@ describe("useAppController tray actions", () => {
     nativeMock.listProfileUsage.mockResolvedValue(rows);
     nativeMock.getCurrentAccountStatus.mockResolvedValue(null);
     nativeMock.checkCdxUpstream.mockResolvedValue({ repo: "repo", baseRef: "v0", latestRef: null, updateAvailable: false, error: null });
-    nativeMock.switchProfile.mockResolvedValue({ activeProfileId: "work", desktopRestarted: true, message: "switched" });
+    nativeMock.switchProfile.mockResolvedValue({
+      activeProfileId: "work",
+      desktopRestarted: true,
+      windows: { ok: true, message: "switched" },
+      desktop: { requested: true, ok: true, restarted: true, message: "restarted" },
+      ssh: { enabled: false, ok: null, stage: "disabled", message: null },
+      message: "switched",
+    });
     nativeMock.setTrayTooltip.mockResolvedValue(undefined);
     nativeMock.updateTrayMenuState.mockResolvedValue(undefined);
     nativeMock.onTrayAction.mockResolvedValue(() => {});

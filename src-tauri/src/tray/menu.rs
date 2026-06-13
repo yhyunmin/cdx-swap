@@ -10,6 +10,7 @@ pub(super) const REFRESH_ID: &str = "tray:refresh";
 pub(super) const QUIT_ID: &str = "tray:quit";
 pub(super) const STATUS_ID: &str = "tray:status";
 pub(super) const SWITCH_MENU_ID: &str = "tray:switch";
+const LAST_ERROR_ID: &str = "tray:last-error";
 const SWITCH_PREFIX: &str = "tray:switch:";
 
 pub(super) fn build_context_menu(
@@ -21,6 +22,9 @@ pub(super) fn build_context_menu(
     let active_id = active
         .map(|profile| profile.profile_id.as_str())
         .unwrap_or("none");
+    let active_account = active
+        .map(|profile| profile.account.as_str())
+        .unwrap_or("unknown");
     let five_hour = active.and_then(|profile| profile.five_hour_left);
     let weekly = active.and_then(|profile| profile.weekly_left);
 
@@ -28,7 +32,7 @@ pub(super) fn build_context_menu(
         app,
         STATUS_ID,
         format!(
-            "상태: {active_id} 5H {} / Week {}",
+            "상태: {active_id} ({active_account}) 5H {} / Week {}",
             quota_label(five_hour),
             quota_label(weekly)
         ),
@@ -42,6 +46,21 @@ pub(super) fn build_context_menu(
     let separator = PredefinedMenuItem::separator(app)?;
 
     menu.append(&status)?;
+    if let Some(error) = state
+        .last_switch_error
+        .as_ref()
+        .filter(|error| !error.trim().is_empty())
+    {
+        let short_error = truncate_label(error, 86);
+        let item = MenuItem::with_id(
+            app,
+            LAST_ERROR_ID,
+            format!("최근 전환 실패: {short_error}"),
+            false,
+            None::<&str>,
+        )?;
+        menu.append(&item)?;
+    }
     menu.append(&open)?;
 
     if !state.profiles.is_empty() {
@@ -52,9 +71,19 @@ pub(super) fn build_context_menu(
                 app,
                 switch_item_id(&profile.profile_id),
                 if is_active {
-                    format!("{} ✓", profile.profile_id)
+                    format!(
+                        "{} ✓  5H {} / Week {}",
+                        profile.profile_id,
+                        quota_label(profile.five_hour_left),
+                        quota_label(profile.weekly_left)
+                    )
                 } else {
-                    profile.profile_id.clone()
+                    format!(
+                        "{}  5H {} / Week {}",
+                        profile.profile_id,
+                        quota_label(profile.five_hour_left),
+                        quota_label(profile.weekly_left)
+                    )
                 },
                 !is_active,
                 None::<&str>,
@@ -83,6 +112,16 @@ fn switch_item_id(profile_id: &str) -> String {
 
 fn quota_label(value: Option<u8>) -> String {
     value.map_or_else(|| "--%".to_string(), |value| format!("{value}%"))
+}
+
+fn truncate_label(value: &str, max_chars: usize) -> String {
+    let mut chars = value.chars();
+    let truncated = chars.by_ref().take(max_chars).collect::<String>();
+    if chars.next().is_some() {
+        format!("{truncated}...")
+    } else {
+        truncated
+    }
 }
 
 fn active_profile<'a>(state: &'a TrayMenuState) -> Option<&'a TrayProfile> {

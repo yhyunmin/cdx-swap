@@ -17,6 +17,8 @@ import type {
   ClaudeUsageStatus,
   CurrentAccountStatus,
   ProfileUsage,
+  SshSyncResult,
+  SwitchResult,
   TrayActionPayload,
   UpstreamStatus,
 } from "../types/domain";
@@ -37,6 +39,9 @@ export function useAppController() {
   const [session, setSession] = useState<ActionSession | null>(null);
   const [upstream, setUpstream] = useState<UpstreamStatus | null>(null);
   const [currentAccountStatus, setCurrentAccountStatus] = useState<CurrentAccountStatus | null>(null);
+  const [sshStatus, setSshStatus] = useState<SshSyncResult | null>(null);
+  const [desktopStatus, setDesktopStatus] = useState<SwitchResult["desktop"] | null>(null);
+  const [lastSwitchError, setLastSwitchError] = useState<string | null>(null);
   const [claudeUsage, setClaudeUsage] = useState<ClaudeUsageStatus | null>(null);
   const [claudeOAuthCode, setClaudeOAuthCode] = useState("");
   const [claudeBusy, setClaudeBusy] = useState(false);
@@ -50,6 +55,7 @@ export function useAppController() {
   const notifiedLowQuota = useRef(new Set<string>());
   const configRef = useRef(config);
   const profilesRef = useRef(profiles);
+  const lastSwitchErrorRef = useRef<string | null>(null);
   const refreshInFlight = useRef<Promise<void> | null>(null);
   const pendingForceRestart = useRef(false);
 
@@ -66,7 +72,7 @@ export function useAppController() {
 
   const publishTrayState = useCallback(async (nextConfig: AppConfig, rows: ProfileUsage[]) => {
     await native.setTrayTooltip(trayLabel(activeProfile(nextConfig, rows)));
-    await native.updateTrayMenuState(trayMenuState(nextConfig, rows));
+    await native.updateTrayMenuState(trayMenuState(nextConfig, rows, lastSwitchErrorRef.current));
   }, []);
 
   const notifySessionComplete = useCallback(
@@ -127,13 +133,20 @@ export function useAppController() {
               fetchedAt: new Date().toISOString(),
             }))
           : null;
+        let nextConfig = configRef.current;
+        if (nextConfig.activeProfileId && !rows.some((row) => row.profileId === nextConfig.activeProfileId)) {
+          nextConfig = normalizeConfig(await native.saveConfig({ ...nextConfig, activeProfileId: null }));
+          configRef.current = nextConfig;
+          setConfig(nextConfig);
+          setDraftConfig(nextConfig);
+        }
         profilesRef.current = rows;
         setProfiles(rows);
         setCurrentAccountStatus(currentStatus);
         setClaudeUsage(nextClaudeUsage);
         setLastUpdated(new Date().toISOString());
         notifyLowQuota(rows);
-        await publishTrayState(configRef.current, rows);
+        await publishTrayState(nextConfig, rows);
       } catch (err) {
         setError(String(err));
       } finally {
@@ -189,6 +202,13 @@ export function useAppController() {
       try {
         const switchConfig = shouldRestartDesktop ? { ...nextConfig, restartDesktopOnSwitch: true } : nextConfig;
         const result = await native.switchProfile(profile.profileId, switchConfig);
+        setError(null);
+        setDesktopStatus(result.desktop);
+        setSshStatus(result.ssh);
+        const switchWarnings = [result.desktop.ok === false ? result.desktop.message : null, result.ssh.ok === false ? result.ssh.message : null].filter(Boolean) as string[];
+        const nextSwitchError = switchWarnings.length ? switchWarnings.join(" ") : null;
+        lastSwitchErrorRef.current = nextSwitchError;
+        setLastSwitchError(nextSwitchError);
         await saveConfig(nextConfig);
         toast.message(result.message);
         pendingForceRestart.current = false;
@@ -197,11 +217,40 @@ export function useAppController() {
       } catch (err) {
         const message = String(err);
         setError(message);
+        lastSwitchErrorRef.current = message;
+        setLastSwitchError(message);
+        await publishTrayState(configRef.current, profilesRef.current).catch(() => undefined);
         toast.error(message);
       }
     },
-    [refreshUsage, saveConfig],
+    [publishTrayState, refreshUsage, saveConfig],
   );
+
+  const retrySshCodexSync = useCallback(async () => {
+    try {
+      const result = await native.retrySshCodexSync(configRef.current);
+      setSshStatus(result);
+      if (result.ok === false) {
+        const message = result.message ?? "SSH Codex 동기화 실패";
+        lastSwitchErrorRef.current = message;
+        setLastSwitchError(message);
+        await publishTrayState(configRef.current, profilesRef.current).catch(() => undefined);
+        toast.error(message);
+        return;
+      }
+      lastSwitchErrorRef.current = null;
+      setLastSwitchError(null);
+      await publishTrayState(configRef.current, profilesRef.current).catch(() => undefined);
+      toast.success(result.message ?? "SSH Codex 동기화 완료");
+    } catch (err) {
+      const message = String(err);
+      setError(message);
+      lastSwitchErrorRef.current = message;
+      setLastSwitchError(message);
+      await publishTrayState(configRef.current, profilesRef.current).catch(() => undefined);
+      toast.error(message);
+    }
+  }, [publishTrayState]);
 
   const runProfileById = useCallback(
     async (profileId: string) => {
@@ -450,6 +499,9 @@ export function useAppController() {
     session: visibleSession,
     upstream,
     currentAccountStatus,
+    sshStatus,
+    desktopStatus,
+    lastSwitchError,
     claudeUsage,
     claudeOAuthCode,
     claudeBusy,
@@ -468,6 +520,7 @@ export function useAppController() {
     setNewProfileId,
     setClaudeOAuthCode,
     refreshUsage,
+    retrySshCodexSync,
     refreshClaudeUsage,
     saveSettings,
     selectProfile,

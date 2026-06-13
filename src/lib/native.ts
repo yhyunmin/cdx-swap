@@ -27,6 +27,7 @@ interface NativeApi {
   sendActionInput(sessionId: string, input: string): Promise<void>;
   getActionSession(sessionId: string): Promise<ActionSession | null>;
   switchProfile(profileId: string, config: AppConfig): Promise<SwitchResult>;
+  retrySshCodexSync(config: AppConfig): Promise<SwitchResult["ssh"]>;
   startClaudeLogin(): Promise<ClaudeLoginStart>;
   finishClaudeLogin(code: string): Promise<ClaudeUsageStatus>;
   logoutClaude(): Promise<ClaudeUsageStatus>;
@@ -85,7 +86,17 @@ const browserApi: NativeApi = {
   },
   async sendActionInput() {},
   async switchProfile(profileId) {
-    return { activeProfileId: profileId, desktopRestarted: false, message: `${profileId} 선택됨` };
+    return {
+      activeProfileId: profileId,
+      desktopRestarted: false,
+      windows: { ok: true, message: `${profileId} 선택됨` },
+      desktop: { requested: false, ok: null, restarted: false, message: null },
+      ssh: { enabled: false, ok: null, stage: "disabled", message: null },
+      message: `${profileId} 선택됨`,
+    };
+  },
+  async retrySshCodexSync() {
+    return { enabled: false, ok: null, stage: "disabled", message: null };
   },
   async startClaudeLogin() {
     return { ok: true, authUrl: "https://claude.ai/oauth/authorize", pendingPath: "~/.cdx/claude_oauth_pending.json" };
@@ -151,6 +162,7 @@ const tauriApi: NativeApi = {
   sendActionInput: (sessionId, input) => invoke("send_action_input", { sessionId, input }),
   getActionSession: (sessionId) => invoke("get_action_session", { sessionId }),
   switchProfile: (profileId, config) => invoke("switch_profile", { profileId, config }),
+  retrySshCodexSync: (config) => invoke("retry_ssh_codex_sync", { config }),
   startClaudeLogin: () => invoke("start_claude_login"),
   finishClaudeLogin: (code) => invoke("finish_claude_login", { code }),
   logoutClaude: () => invoke("logout_claude"),

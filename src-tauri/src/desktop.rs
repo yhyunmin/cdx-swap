@@ -132,6 +132,44 @@ fn resolve_codex_desktop_path(codex_desktop_path: &str) -> Option<PathBuf> {
 }
 
 #[cfg(target_os = "windows")]
+fn desktop_resolution_report(codex_desktop_path: &str) -> String {
+    let configured = codex_desktop_path.trim();
+    let configured_status = if configured.is_empty() {
+        "configured path empty".to_string()
+    } else {
+        let path = PathBuf::from(configured);
+        if !path.exists() {
+            format!("configured path missing: {configured}")
+        } else if looks_like_codex_cli(&path) {
+            format!("configured path is Codex CLI, not Desktop: {configured}")
+        } else {
+            format!("configured path looked valid but launch failed: {configured}")
+        }
+    };
+    let running_status = running_codex_path()
+        .map(|path| {
+            if looks_like_codex_cli(&path) {
+                format!("running Codex process is CLI: {}", path.display())
+            } else {
+                format!(
+                    "running Desktop path found but was not used: {}",
+                    path.display()
+                )
+            }
+        })
+        .unwrap_or_else(|| "running Desktop process not found".to_string());
+    let candidates = desktop_path_candidates();
+    let known_status = if candidates.iter().any(|candidate| candidate.exists()) {
+        "known install path exists but no valid Desktop executable was selected".to_string()
+    } else {
+        "known install paths missing".to_string()
+    };
+    format!(
+        "{configured_status}; {running_status}; {known_status}; Start menu app missing or failed"
+    )
+}
+
+#[cfg(target_os = "windows")]
 fn shutdown_codex_desktop() -> Result<(), String> {
     Command::new("powershell")
         .args([
@@ -189,7 +227,12 @@ pub fn restart_codex_desktop(codex_desktop_path: &str, codex_home: &str) -> Resu
         return Ok(());
     }
 
-    launch_codex_start_menu_app()
+    launch_codex_start_menu_app().map_err(|error| {
+        format!(
+            "{error} ({})",
+            desktop_resolution_report(codex_desktop_path)
+        )
+    })
 }
 
 #[cfg(not(target_os = "windows"))]
