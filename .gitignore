@@ -3,5 +3,6 @@ dist/
 Desktop/
 src-tauri/target/
 src-tauri/gen/
+.dryforge/
 *.log
 *.tar.gz
