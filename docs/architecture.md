@@ -8,4 +8,6 @@
 
 tray 메뉴는 React 상태가 만든 `TrayMenuState`를 Rust로 전달해서 재구성한다. 메뉴 클릭은 `tray-action` 이벤트로 다시 React에 들어오고, React는 패널 클릭과 같은 계정 전환 경로를 사용한다. tray 메뉴 자체는 풍부한 tooltip을 안정적으로 제공하지 못하므로 최근 실패 이유는 비활성 메뉴 항목이나 패널 notice로 노출한다.
 
+React 패널은 사용량 목록을 중심 화면으로 둔다. 저장된 프로필은 카드 목록으로 한 번 더 반복하지 않고 `Codex 사용량` 행에서 전환, 실행, 로그아웃, 숨김, rename을 처리한다. 프로필 영역은 새 로그인 시작점만 제공한다. 전환 클릭 영역과 icon action은 DOM에서 분리해서 rename이나 logout 클릭이 계정 전환으로 번지지 않게 한다.
+
 외부 경계는 네 가지다. Windows 파일시스템의 Codex home, Codex CLI 프로세스, Codex Desktop 실행 파일 또는 시작 메뉴 앱, SSH 대상 host다. 이 경계들은 모두 실패할 수 있고, 실패 이유는 사용자에게 숨기지 않는다.

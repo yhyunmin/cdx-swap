@@ -56,6 +56,13 @@ export function TrayPanel(controller: AppController) {
     [controller.toggleProfileVisibility],
   );
 
+  const handleRename = useCallback(
+    (profile: Parameters<AppController["openRenameDialog"]>[0]) => {
+      controller.openRenameDialog(profile);
+    },
+    [controller.openRenameDialog],
+  );
+
   const handleLogout = useCallback(
     (profileId: string) => {
       void controller.startAction("logout", profileId);
@@ -107,7 +114,13 @@ export function TrayPanel(controller: AppController) {
         <div className="notice notice--error">
           <AlertTriangle size={16} />
           <span>{controller.sshStatus.message ?? "SSH Codex 동기화에 실패했습니다."}</span>
-          <button className="icon-button icon-button--sm" type="button" onClick={() => void controller.retrySshCodexSync()} aria-label="SSH Codex 다시 동기화" title="SSH 다시 동기화">
+          <button
+            className="icon-button icon-button--sm tooltip-trigger"
+            type="button"
+            onClick={() => void controller.retrySshCodexSync()}
+            aria-label="SSH Codex 다시 동기화"
+            data-tooltip="SSH 다시 동기화"
+          >
             <RefreshCw size={14} />
           </button>
         </div>
@@ -145,43 +158,105 @@ export function TrayPanel(controller: AppController) {
         />
       ) : (
         <>
-          <ProfilePanel
-            profiles={controller.profiles}
-            activeProfileId={controller.selected?.profileId ?? null}
-            hiddenProfileIds={controller.config.hiddenProfileIds}
-            maskEmails={controller.config.maskEmails}
-            loading={controller.loading}
-            newProfileId={controller.newProfileId}
-            onNewProfileIdChange={controller.setNewProfileId}
-            onSelect={handleSelectProfile}
-            onAction={handleAction}
-            onToggleHidden={handleToggleHidden}
-          />
-          <SessionPanel session={controller.session} onSendInput={handleSendSessionInput} />
           <UsageTable
             profiles={controller.profiles}
             config={controller.config}
-            resetAt={controller.selected?.fiveHourReset ?? null}
+            activeProfileId={controller.selected?.profileId ?? null}
+            onSelect={handleSelectProfile}
+            onAction={handleAction}
+            onRename={handleRename}
             onToggleHidden={handleToggleHidden}
             onLogout={handleLogout}
           />
+          <ProfilePanel loading={controller.loading} onOpenLoginDialog={controller.openProfileLoginDialog} />
+          <SessionPanel session={controller.session} onSendInput={handleSendSessionInput} />
           {controller.config.claudeEnabled && (
             <ClaudeUsagePanel usage={controller.claudeUsage} refreshing={controller.claudeBusy} onRefresh={handleRefreshClaudeUsage} />
           )}
         </>
       )}
 
+      {controller.profileLoginDialogOpen && (
+        <div className="modal-backdrop">
+          <form
+            className="confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-login-title"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void controller.submitProfileLogin();
+            }}
+          >
+            <h3 id="profile-login-title">프로필 로그인</h3>
+            <label className="dialog-field">
+              <span>프로필 이름</span>
+              <input
+                autoFocus
+                value={controller.profileLoginName}
+                onChange={(event) => controller.setProfileLoginName(event.target.value)}
+                placeholder="work"
+              />
+            </label>
+            {controller.profileLoginError && <p className="dialog-error">{controller.profileLoginError}</p>}
+            <div className="modal-actions">
+              <button type="button" onClick={controller.closeProfileLoginDialog}>
+                취소
+              </button>
+              <button className="primary-button" type="submit">
+                로그인
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {controller.renameDialog && (
+        <div className="modal-backdrop">
+          <form
+            className="confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-rename-title"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void controller.submitRenameProfile();
+            }}
+          >
+            <h3 id="profile-rename-title">프로필 이름 변경</h3>
+            <label className="dialog-field">
+              <span>새 이름</span>
+              <input
+                autoFocus
+                value={controller.renameDialog.value}
+                onChange={(event) => controller.setRenameValue(event.target.value)}
+                placeholder="codex-work"
+              />
+            </label>
+            {controller.renameDialog.error && <p className="dialog-error">{controller.renameDialog.error}</p>}
+            <div className="modal-actions">
+              <button type="button" onClick={controller.closeRenameDialog}>
+                취소
+              </button>
+              <button className="primary-button" type="submit">
+                변경
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {controller.pendingProfile && (
         <div className="modal-backdrop">
           <div className="confirm-modal" role="dialog" aria-modal="true">
-            <h3>Codex Desktop을 재시작할까요?</h3>
-            <p>{controller.pendingProfile.profileId}로 활성 프로필을 바꾸고 Codex Desktop을 종료한 뒤 다시 실행합니다.</p>
+            <h3>계정 전환</h3>
+            <p>{controller.pendingProfile.profileId}로 활성 프로필을 바꿉니다. 설정 또는 Run 요청에 따라 Codex Desktop이 재시작될 수 있습니다.</p>
             <div className="modal-actions">
               <button type="button" onClick={controller.cancelPendingProfile}>
                 취소
               </button>
-              <button className="danger-button" type="button" onClick={handleConfirmPendingProfile}>
-                재시작
+              <button className="primary-button" type="button" onClick={handleConfirmPendingProfile}>
+                전환
               </button>
             </div>
           </div>

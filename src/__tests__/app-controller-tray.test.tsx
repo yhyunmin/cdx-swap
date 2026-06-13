@@ -9,6 +9,7 @@ const nativeMock = vi.hoisted(() => ({
   listProfileUsage: vi.fn(),
   getCurrentAccountStatus: vi.fn(),
   ensureProfile: vi.fn(),
+  renameProfile: vi.fn(),
   startActionSession: vi.fn(),
   sendActionInput: vi.fn(),
   getActionSession: vi.fn(),

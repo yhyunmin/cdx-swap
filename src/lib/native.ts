@@ -23,6 +23,7 @@ interface NativeApi {
   listProfileUsage(): Promise<ProfileUsage[]>;
   getCurrentAccountStatus(): Promise<CurrentAccountStatus | null>;
   ensureProfile(profileId: string): Promise<ProfileRecord>;
+  renameProfile(profileId: string, nextProfileId: string): Promise<ProfileRecord>;
   startActionSession(kind: ActionKind, profileId: string, config: AppConfig): Promise<ActionSession>;
   sendActionInput(sessionId: string, input: string): Promise<void>;
   getActionSession(sessionId: string): Promise<ActionSession | null>;
@@ -67,6 +68,13 @@ const browserApi: NativeApi = {
   },
   async ensureProfile(profileId) {
     return { id: profileId, homePath: `~/.cdx/profiles/${profileId}`, source: "modern", auth: null };
+  },
+  async renameProfile(profileId, nextProfileId) {
+    const index = sampleProfiles.findIndex((profile) => profile.profileId === profileId);
+    if (index >= 0) {
+      sampleProfiles[index] = { ...sampleProfiles[index], profileId: nextProfileId };
+    }
+    return { id: nextProfileId, homePath: `~/.cdx/profiles/${nextProfileId}`, source: "modern", auth: null };
   },
   async startActionSession(kind, profileId) {
     return {
@@ -158,6 +166,7 @@ const tauriApi: NativeApi = {
   listProfileUsage: () => invoke("list_profile_usage"),
   getCurrentAccountStatus: () => invoke("get_current_account_status"),
   ensureProfile: (profileId) => invoke("ensure_profile", { profileId }),
+  renameProfile: (profileId, nextProfileId) => invoke("rename_profile", { profileId, nextProfileId }),
   startActionSession: (kind, profileId, config) => invoke("start_action_session", { kind, profileId, config }),
   sendActionInput: (sessionId, input) => invoke("send_action_input", { sessionId, input }),
   getActionSession: (sessionId) => invoke("get_action_session", { sessionId }),

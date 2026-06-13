@@ -4,89 +4,20 @@ import { ProfilePanel } from "../components/ProfilePanel";
 import { SessionPanel } from "../components/SessionPanel";
 
 describe("ProfilePanel", () => {
-  it("shows login/run/logout actions for each profile", () => {
-    render(
-      <ProfilePanel
-        profiles={[{ profileId: "main", account: "main@example.com", plan: null, fiveHourLeft: 50, fiveHourReset: null, weeklyLeft: 60, weeklyReset: null, error: null }]}
-        activeProfileId="main"
-        hiddenProfileIds={[]}
-        maskEmails={false}
-        loading={false}
-        newProfileId="work"
-        onNewProfileIdChange={vi.fn()}
-        onSelect={vi.fn()}
-        onAction={vi.fn()}
-        onToggleHidden={vi.fn()}
-      />,
-    );
+  it("opens the profile login dialog from the icon-only action", () => {
+    const onOpenLoginDialog = vi.fn();
+    render(<ProfilePanel loading={false} onOpenLoginDialog={onOpenLoginDialog} />);
 
-    expect(screen.getAllByText("Login")).toHaveLength(2);
-    expect(screen.getByText("Run")).toBeInTheDocument();
-    expect(screen.getByText("Logout")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("프로필 로그인 추가"));
+    expect(onOpenLoginDialog).toHaveBeenCalled();
+    expect(screen.queryByText("Run")).not.toBeInTheDocument();
+    expect(screen.queryByText("Logout")).not.toBeInTheDocument();
   });
 
-  it("dispatches run for the selected profile", () => {
-    const onAction = vi.fn();
-    render(
-      <ProfilePanel
-        profiles={[{ profileId: "main", account: "main@example.com", plan: null, fiveHourLeft: 50, fiveHourReset: null, weeklyLeft: 60, weeklyReset: null, error: null }]}
-        activeProfileId="main"
-        hiddenProfileIds={[]}
-        maskEmails={false}
-        loading={false}
-        newProfileId="work"
-        onNewProfileIdChange={vi.fn()}
-        onSelect={vi.fn()}
-        onAction={onAction}
-        onToggleHidden={vi.fn()}
-      />,
-    );
+  it("disables the login action while profiles are loading", () => {
+    render(<ProfilePanel loading={true} onOpenLoginDialog={vi.fn()} />);
 
-    fireEvent.click(screen.getByText("Run"));
-    expect(onAction).toHaveBeenCalledWith("run", "main");
-  });
-
-  it("shows the new profile login entry when no profiles exist", () => {
-    render(
-      <ProfilePanel
-        profiles={[]}
-        activeProfileId={null}
-        hiddenProfileIds={[]}
-        maskEmails={false}
-        loading={false}
-        newProfileId="work"
-        onNewProfileIdChange={vi.fn()}
-        onSelect={vi.fn()}
-        onAction={vi.fn()}
-        onToggleHidden={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByPlaceholderText("new-profile")).toBeInTheDocument();
-    expect(screen.getByText(/새 프로필 이름/)).toBeInTheDocument();
-  });
-
-  it("toggles profile visibility without starting a login action", () => {
-    const onAction = vi.fn();
-    const onToggleHidden = vi.fn();
-    render(
-      <ProfilePanel
-        profiles={[{ profileId: "main", account: "main@example.com", plan: null, fiveHourLeft: 50, fiveHourReset: null, weeklyLeft: 60, weeklyReset: null, error: null }]}
-        activeProfileId="main"
-        hiddenProfileIds={[]}
-        maskEmails={false}
-        loading={false}
-        newProfileId="work"
-        onNewProfileIdChange={vi.fn()}
-        onSelect={vi.fn()}
-        onAction={onAction}
-        onToggleHidden={onToggleHidden}
-      />,
-    );
-
-    fireEvent.click(screen.getByLabelText("main 숨기기"));
-    expect(onToggleHidden).toHaveBeenCalledWith("main");
-    expect(onAction).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("프로필 로그인 추가")).toBeDisabled();
   });
 });
 

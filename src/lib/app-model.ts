@@ -70,6 +70,17 @@ export function displayAccount(account: string, maskEmails: boolean) {
   return `${name.slice(0, 2)}****@${domain}`;
 }
 
+export function validateProfileName(value: string, existingProfileIds: string[], currentProfileId: string | null = null): string | null {
+  const profileId = value.trim();
+  if (!profileId) return "프로필 이름이 필요합니다.";
+  if (profileId === "." || profileId === "..") return "사용할 수 없는 프로필 이름입니다.";
+  if (/[\\/:*?"<>|]/.test(profileId) || profileId.includes("..")) return "경로나 특수 문자는 사용할 수 없습니다.";
+  if (existingProfileIds.some((id) => id !== currentProfileId && id.toLocaleLowerCase() === profileId.toLocaleLowerCase())) {
+    return "이미 있는 프로필 이름입니다.";
+  }
+  return null;
+}
+
 export interface LowQuotaAlert {
   key: string;
   profileId: string;

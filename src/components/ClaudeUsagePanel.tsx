@@ -41,7 +41,7 @@ export const ClaudeUsagePanel = memo(function ClaudeUsagePanel({ usage, refreshi
         <h2>Claude 사용량</h2>
         <div className="provider-row">
           <span>{formatResetDate(resetAt)}</span>
-          <button className="icon-button icon-button--sm" type="button" onClick={onRefresh} aria-label="Claude 사용량 조회" title="조회">
+          <button className="icon-button icon-button--sm tooltip-trigger" type="button" onClick={onRefresh} aria-label="Claude 사용량 조회" data-tooltip="조회">
             <RefreshCw size={14} className={refreshing ? "spin" : undefined} />
           </button>
         </div>

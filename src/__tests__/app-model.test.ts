@@ -8,6 +8,7 @@ import {
   toggleHiddenProfile,
   trayLabel,
   trayMenuState,
+  validateProfileName,
 } from "../lib/app-model";
 import type { ProfileUsage } from "../types/domain";
 
@@ -59,5 +60,13 @@ describe("app model", () => {
     expect(lowQuotaAlerts([{ ...profiles[0], fiveHourLeft: 20, weeklyLeft: 19 }])).toEqual([
       { key: "main:Week", profileId: "main", label: "Week", value: 19 },
     ]);
+  });
+
+  it("validates profile names for login and rename", () => {
+    expect(validateProfileName(" work ", ["main"])).toBeNull();
+    expect(validateProfileName("", ["main"])).toBe("프로필 이름이 필요합니다.");
+    expect(validateProfileName("main", ["main"])).toBe("이미 있는 프로필 이름입니다.");
+    expect(validateProfileName("main", ["main"], "main")).toBeNull();
+    expect(validateProfileName("../main", ["main"])).toBe("경로나 특수 문자는 사용할 수 없습니다.");
   });
 });

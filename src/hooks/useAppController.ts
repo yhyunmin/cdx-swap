@@ -8,6 +8,7 @@ import {
   toggleHiddenProfile,
   trayLabel,
   trayMenuState,
+  validateProfileName,
 } from "../lib/app-model";
 import { native } from "../lib/native";
 import type {
@@ -46,6 +47,10 @@ export function useAppController() {
   const [claudeOAuthCode, setClaudeOAuthCode] = useState("");
   const [claudeBusy, setClaudeBusy] = useState(false);
   const [newProfileId, setNewProfileId] = useState("work");
+  const [profileLoginDialogOpen, setProfileLoginDialogOpen] = useState(false);
+  const [profileLoginName, setProfileLoginName] = useState("work");
+  const [profileLoginError, setProfileLoginError] = useState<string | null>(null);
+  const [renameDialog, setRenameDialog] = useState<{ profileId: string; value: string; error: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -187,16 +192,19 @@ export function useAppController() {
   const selectProfile = useCallback(
     async (profile: ProfileUsage, confirmed = false, forceRestart = false) => {
       const currentConfig = configRef.current;
+      if (currentConfig.activeProfileId === profile.profileId && !forceRestart) {
+        return true;
+      }
       const nextConfig = { ...currentConfig, activeProfileId: profile.profileId };
       const shouldRestartDesktop = forceRestart || currentConfig.restartDesktopOnSwitch;
       if (confirmed) {
         pendingForceRestart.current = false;
         setPendingProfile(null);
       }
-      if (shouldRestartDesktop && currentConfig.confirmBeforeSwitch && !confirmed) {
+      if (currentConfig.confirmBeforeSwitch && !confirmed) {
         pendingForceRestart.current = forceRestart;
         setPendingProfile(profile);
-        return;
+        return true;
       }
 
       try {
@@ -214,6 +222,7 @@ export function useAppController() {
         pendingForceRestart.current = false;
         setPendingProfile(null);
         void refreshUsage();
+        return true;
       } catch (err) {
         const message = String(err);
         setError(message);
@@ -221,6 +230,7 @@ export function useAppController() {
         setLastSwitchError(message);
         await publishTrayState(configRef.current, profilesRef.current).catch(() => undefined);
         toast.error(message);
+        return false;
       }
     },
     [publishTrayState, refreshUsage, saveConfig],
@@ -259,9 +269,9 @@ export function useAppController() {
         const message = `Unknown profile: ${profileId}`;
         setError(message);
         toast.error(message);
-        return;
+        return false;
       }
-      await selectProfile(profile, false, true);
+      return selectProfile(profile, false, true);
     },
     [selectProfile],
   );
@@ -285,12 +295,11 @@ export function useAppController() {
       const id = profileId.trim();
       if (!id) {
         setError("프로필 이름이 필요합니다.");
-        return;
+        return false;
       }
       setError(null);
       if (kind === "run") {
-        await runProfileById(id);
-        return;
+        return runProfileById(id);
       }
       try {
         const next = await native.startActionSession(kind, id, configRef.current);
@@ -302,10 +311,12 @@ export function useAppController() {
         if (next.finishedAt && !configRef.current.showSessionLogs) {
           setSession(null);
         }
+        return next.status !== "failed";
       } catch (err) {
         const message = String(err);
         setError(message);
         toast.error(message);
+        return false;
       }
     },
     [notifySessionComplete, refreshUsage, runProfileById],
@@ -315,6 +326,86 @@ export function useAppController() {
     if (!pendingProfile) return;
     await selectProfile(pendingProfile, true, pendingForceRestart.current);
   }, [pendingProfile, selectProfile]);
+
+  const openProfileLoginDialog = useCallback(() => {
+    setProfileLoginName(newProfileId);
+    setProfileLoginError(null);
+    setProfileLoginDialogOpen(true);
+  }, [newProfileId]);
+
+  const closeProfileLoginDialog = useCallback(() => {
+    setProfileLoginDialogOpen(false);
+    setProfileLoginError(null);
+  }, []);
+
+  const submitProfileLogin = useCallback(async () => {
+    const value = profileLoginName.trim();
+    const validation = validateProfileName(
+      value,
+      profilesRef.current.map((profile) => profile.profileId),
+    );
+    if (validation) {
+      setProfileLoginError(validation);
+      return;
+    }
+    const started = await startAction("login", value);
+    if (!started) {
+      setProfileLoginError("로그인 시작에 실패했습니다. 화면의 오류 메시지를 확인하세요.");
+      return;
+    }
+    setNewProfileId(value);
+    setProfileLoginDialogOpen(false);
+    setProfileLoginError(null);
+  }, [profileLoginName, startAction]);
+
+  const openRenameDialog = useCallback((profile: ProfileUsage) => {
+    setRenameDialog({ profileId: profile.profileId, value: profile.profileId, error: null });
+  }, []);
+
+  const closeRenameDialog = useCallback(() => {
+    setRenameDialog(null);
+  }, []);
+
+  const setRenameValue = useCallback((value: string) => {
+    setRenameDialog((current) => (current ? { ...current, value, error: null } : current));
+  }, []);
+
+  const submitRenameProfile = useCallback(async () => {
+    if (!renameDialog) return;
+    const nextProfileId = renameDialog.value.trim();
+    const validation = validateProfileName(
+      nextProfileId,
+      profilesRef.current.map((profile) => profile.profileId),
+      renameDialog.profileId,
+    );
+    if (validation) {
+      setRenameDialog((current) => (current ? { ...current, error: validation } : current));
+      return;
+    }
+    try {
+      await native.renameProfile(renameDialog.profileId, nextProfileId);
+      const nextRows = profilesRef.current.map((profile) =>
+        profile.profileId === renameDialog.profileId ? { ...profile, profileId: nextProfileId } : profile,
+      );
+      profilesRef.current = nextRows;
+      setProfiles(nextRows);
+      const currentConfig = configRef.current;
+      const nextConfig = {
+        ...currentConfig,
+        activeProfileId: currentConfig.activeProfileId === renameDialog.profileId ? nextProfileId : currentConfig.activeProfileId,
+        hiddenProfileIds: currentConfig.hiddenProfileIds.map((id) => (id === renameDialog.profileId ? nextProfileId : id)),
+      };
+      await saveConfig(nextConfig);
+      setRenameDialog(null);
+      toast.success("프로필 이름을 변경했습니다.");
+      void refreshUsage();
+    } catch (err) {
+      const message = String(err);
+      setRenameDialog((current) => (current ? { ...current, error: message } : current));
+      setError(message);
+      toast.error(message);
+    }
+  }, [refreshUsage, renameDialog, saveConfig]);
 
   const sendSessionInput = useCallback(
     async (input: string) => {
@@ -507,6 +598,10 @@ export function useAppController() {
     claudeBusy,
     selected,
     newProfileId,
+    profileLoginDialogOpen,
+    profileLoginName,
+    profileLoginError,
+    renameDialog,
     loading,
     refreshing,
     lastUpdated,
@@ -518,12 +613,20 @@ export function useAppController() {
     toggleSettingsView,
     setDraftConfig,
     setNewProfileId,
+    setProfileLoginName,
     setClaudeOAuthCode,
     refreshUsage,
     retrySshCodexSync,
     refreshClaudeUsage,
     saveSettings,
     selectProfile,
+    openProfileLoginDialog,
+    closeProfileLoginDialog,
+    submitProfileLogin,
+    openRenameDialog,
+    closeRenameDialog,
+    setRenameValue,
+    submitRenameProfile,
     startAction,
     sendSessionInput,
     startClaudeLogin,

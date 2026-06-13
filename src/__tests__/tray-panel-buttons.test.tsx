@@ -16,6 +16,17 @@ const mainProfile: ProfileUsage = {
   error: null,
 };
 
+const workProfile: ProfileUsage = {
+  profileId: "work",
+  account: "work@example.com",
+  plan: "pro",
+  fiveHourLeft: 70,
+  fiveHourReset: null,
+  weeklyLeft: 80,
+  weeklyReset: null,
+  error: null,
+};
+
 const claudeUsage: ClaudeUsageStatus = {
   ok: true,
   authenticated: true,
@@ -33,7 +44,7 @@ function controller(overrides: Partial<AppController> = {}) {
     view: "dashboard",
     config: { ...defaultConfig, claudeEnabled: true },
     draftConfig: { ...defaultConfig, claudeEnabled: true },
-    profiles: [mainProfile],
+    profiles: [mainProfile, workProfile],
     session: null,
     upstream: null,
     currentAccountStatus: null,
@@ -45,6 +56,10 @@ function controller(overrides: Partial<AppController> = {}) {
     claudeBusy: false,
     selected: mainProfile,
     newProfileId: "work",
+    profileLoginDialogOpen: false,
+    profileLoginName: "work",
+    profileLoginError: null,
+    renameDialog: null,
     loading: false,
     refreshing: false,
     lastUpdated: null,
@@ -56,12 +71,20 @@ function controller(overrides: Partial<AppController> = {}) {
     toggleSettingsView: vi.fn(),
     setDraftConfig: vi.fn(),
     setNewProfileId: vi.fn(),
+    setProfileLoginName: vi.fn(),
     setClaudeOAuthCode: vi.fn(),
     refreshUsage: vi.fn(),
     retrySshCodexSync: vi.fn(),
     refreshClaudeUsage: vi.fn(),
     saveSettings: vi.fn(),
     selectProfile: vi.fn(),
+    openProfileLoginDialog: vi.fn(),
+    closeProfileLoginDialog: vi.fn(),
+    submitProfileLogin: vi.fn(),
+    openRenameDialog: vi.fn(),
+    closeRenameDialog: vi.fn(),
+    setRenameValue: vi.fn(),
+    submitRenameProfile: vi.fn(),
     startAction: vi.fn(),
     sendSessionInput: vi.fn(),
     startClaudeLogin: vi.fn(),
@@ -84,18 +107,23 @@ describe("TrayPanel buttons", () => {
     fireEvent.click(screen.getByLabelText("Refresh"));
     fireEvent.click(screen.getByLabelText("Settings"));
     fireEvent.click(screen.getByLabelText("Close"));
-    fireEvent.click(screen.getAllByText("Login")[0]);
-    fireEvent.click(screen.getByText("Run"));
-    fireEvent.click(screen.getByText("Logout"));
+    fireEvent.click(screen.getByLabelText("프로필 로그인 추가"));
+    fireEvent.click(screen.getByLabelText("main 실행"));
     fireEvent.click(screen.getByLabelText("main 로그아웃"));
+    fireEvent.click(screen.getByLabelText("main 숨기기"));
+    fireEvent.click(screen.getByLabelText("main 이름 변경"));
+    fireEvent.click(screen.getByText("work"));
     fireEvent.click(screen.getByLabelText("Claude 사용량 조회"));
 
     expect(c.refreshUsage).toHaveBeenCalled();
     expect(c.toggleSettingsView).toHaveBeenCalled();
     expect(c.hideWindow).toHaveBeenCalled();
-    expect(c.startAction).toHaveBeenCalledWith("login", "main");
     expect(c.startAction).toHaveBeenCalledWith("run", "main");
     expect(c.startAction).toHaveBeenCalledWith("logout", "main");
+    expect(c.toggleProfileVisibility).toHaveBeenCalledWith("main");
+    expect(c.openProfileLoginDialog).toHaveBeenCalled();
+    expect(c.openRenameDialog).toHaveBeenCalledWith(mainProfile);
+    expect(c.selectProfile).toHaveBeenCalledWith(workProfile);
     expect(c.refreshClaudeUsage).toHaveBeenCalled();
   });
 
@@ -125,9 +153,31 @@ describe("TrayPanel buttons", () => {
     render(<TrayPanel {...c} />);
 
     fireEvent.click(screen.getByText("취소"));
-    fireEvent.click(screen.getByText("재시작"));
+    fireEvent.click(screen.getByText("전환"));
 
     expect(c.cancelPendingProfile).toHaveBeenCalled();
     expect(c.confirmPendingProfile).toHaveBeenCalled();
+  });
+
+  it("wires the profile login dialog", () => {
+    const c = controller({ profileLoginDialogOpen: true, profileLoginName: "work2" });
+    render(<TrayPanel {...c} />);
+
+    fireEvent.change(screen.getByPlaceholderText("work"), { target: { value: "work3" } });
+    fireEvent.click(screen.getByText("로그인"));
+
+    expect(c.setProfileLoginName).toHaveBeenCalledWith("work3");
+    expect(c.submitProfileLogin).toHaveBeenCalled();
+  });
+
+  it("wires the rename dialog", () => {
+    const c = controller({ renameDialog: { profileId: "main", value: "main", error: null } });
+    render(<TrayPanel {...c} />);
+
+    fireEvent.change(screen.getByPlaceholderText("codex-work"), { target: { value: "personal" } });
+    fireEvent.click(screen.getByText("변경"));
+
+    expect(c.setRenameValue).toHaveBeenCalledWith("personal");
+    expect(c.submitRenameProfile).toHaveBeenCalled();
   });
 });

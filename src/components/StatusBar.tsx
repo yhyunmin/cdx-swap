@@ -27,10 +27,10 @@ export const StatusBar = memo(function StatusBar({ activeProfile, lastUpdated, r
       </div>
       <div className="header-actions">
         <span className="refresh-label">갱신 {formatRefreshTime(lastUpdated)}</span>
-        <button className="icon-button" type="button" onClick={onRefresh} aria-label="Refresh">
+        <button className="icon-button tooltip-trigger" type="button" onClick={onRefresh} aria-label="Refresh" data-tooltip="갱신">
           <RefreshCw size={17} className={refreshing ? "spin" : ""} />
         </button>
-        <button className="icon-button" type="button" onClick={onToggleSettings} aria-label="Settings">
+        <button className="icon-button tooltip-trigger" type="button" onClick={onToggleSettings} aria-label="Settings" data-tooltip={settingsOpen ? "닫기" : "설정"}>
           {settingsOpen ? <X size={17} /> : <Settings size={17} />}
         </button>
       </div>

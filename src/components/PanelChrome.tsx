@@ -1,4 +1,4 @@
-import { GripHorizontal, X } from "lucide-react";
+import { GripVertical, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 interface PanelChromeProps {
@@ -17,9 +17,10 @@ export function PanelChrome({ children, onClose, onStartDrag }: PanelChromeProps
         }}
         role="presentation"
       >
-        <GripHorizontal size={18} />
+        <GripVertical size={18} />
+        <span className="drag-fill" aria-hidden="true" />
         <button
-          className="icon-button"
+          className="icon-button tooltip-trigger"
           type="button"
           onMouseDown={(event) => {
             event.preventDefault();
@@ -27,6 +28,7 @@ export function PanelChrome({ children, onClose, onStartDrag }: PanelChromeProps
           }}
           onClick={onClose}
           aria-label="Close"
+          data-tooltip="닫기"
         >
           <X size={17} />
         </button>
