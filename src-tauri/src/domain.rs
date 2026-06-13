@@ -44,8 +44,10 @@ impl Default for AppConfig {
 #[serde(rename_all = "camelCase")]
 pub struct TrayProfile {
     pub profile_id: String,
+    pub account: String,
     pub five_hour_left: Option<u8>,
     pub weekly_left: Option<u8>,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,6 +55,7 @@ pub struct TrayProfile {
 pub struct TrayMenuState {
     pub active_profile_id: Option<String>,
     pub profiles: Vec<TrayProfile>,
+    pub last_switch_error: Option<String>,
 }
 
 impl Default for TrayMenuState {
@@ -60,6 +63,7 @@ impl Default for TrayMenuState {
         Self {
             active_profile_id: None,
             profiles: Vec::new(),
+            last_switch_error: None,
         }
     }
 }
@@ -187,7 +191,47 @@ pub enum ActionStatus {
 pub struct SwitchResult {
     pub active_profile_id: String,
     pub desktop_restarted: bool,
+    pub windows: WindowsSwitchResult,
+    pub desktop: DesktopRestartResult,
+    pub ssh: SshSyncResult,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowsSwitchResult {
+    pub ok: bool,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopRestartResult {
+    pub requested: bool,
+    pub ok: Option<bool>,
+    pub restarted: bool,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SshSyncResult {
+    pub enabled: bool,
+    pub ok: Option<bool>,
+    pub stage: SshSyncStage,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SshSyncStage {
+    Disabled,
+    MissingHost,
+    ConnectFailed,
+    CopyFailed,
+    VerifyFailed,
+    RestartFailed,
+    Matched,
 }
 
 #[derive(Debug, Serialize)]

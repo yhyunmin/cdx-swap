@@ -1,10 +1,14 @@
 use crate::{
-    domain::{AuthSummary, CurrentAccountStatus, ProfileRecord, ProfileSource, ProfileUsage},
+    domain::{
+        AuthSummary, CurrentAccountStatus, ProfileRecord, ProfileSource, ProfileUsage,
+        SshSyncResult, SshSyncStage,
+    },
     usage::fetch_usage,
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use serde::Deserialize;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
     fs,
@@ -46,7 +50,7 @@ fn decode_jwt_payload(token: &str) -> Option<Value> {
     serde_json::from_slice(&decoded).ok()
 }
 
-fn read_auth_summary(home_path: &PathBuf) -> Option<AuthSummary> {
+fn read_auth_summary(home_path: &Path) -> Option<AuthSummary> {
     let raw = fs::read_to_string(home_path.join(AUTH_FILE)).ok()?;
     let auth_file: AuthFile = serde_json::from_str(&raw).ok()?;
     let tokens = auth_file.tokens?;
@@ -118,6 +122,11 @@ fn sync_profile_auth_file(profile: &ProfileRecord, target_home: &Path) -> Result
     Ok(())
 }
 
+fn hash_bytes(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
 fn auth_identity_matches(current: &AuthSummary, profile: &AuthSummary) -> bool {
     if current.account_id.is_some() && current.account_id == profile.account_id {
         return true;
@@ -129,6 +138,26 @@ fn auth_file_matches(current_home: &Path, profile_home: &Path) -> bool {
     let current = fs::read(current_home.join(AUTH_FILE));
     let profile = fs::read(profile_home.join(AUTH_FILE));
     matches!((current, profile), (Ok(current), Ok(profile)) if current == profile)
+}
+
+fn verify_auth_matches_profile(current_home: &Path, profile: &ProfileRecord) -> Result<(), String> {
+    let profile_home = PathBuf::from(&profile.home_path);
+    if auth_file_matches(current_home, &profile_home) {
+        return Ok(());
+    }
+    let current = read_auth_summary(&current_home)
+        .ok_or_else(|| "Windows Codex auth could not be read after switch.".to_string())?;
+    let profile_auth = profile
+        .auth
+        .as_ref()
+        .ok_or_else(|| format!("Profile {} is not logged in.", profile.id))?;
+    if auth_identity_matches(&current, profile_auth) {
+        return Ok(());
+    }
+    Err(format!(
+        "Windows Codex auth did not match profile {} after switch.",
+        profile.id
+    ))
 }
 
 fn current_account_status_result() -> Result<Option<CurrentAccountStatus>, String> {
@@ -157,15 +186,118 @@ fn current_account_status_result() -> Result<Option<CurrentAccountStatus>, Strin
     }))
 }
 
-fn sync_default_auth_to_ssh_host(host: &str) -> Result<(), String> {
-    let host = host.trim();
-    if host.is_empty() {
-        return Err("SSH host 이름을 입력해야 합니다.".to_string());
+fn ssh_sync_result(
+    enabled: bool,
+    ok: Option<bool>,
+    stage: SshSyncStage,
+    message: Option<String>,
+) -> SshSyncResult {
+    SshSyncResult {
+        enabled,
+        ok,
+        stage,
+        message,
+    }
+}
+
+fn classify_ssh_failure(stderr: &str, fallback_stage: SshSyncStage) -> SshSyncStage {
+    let lower = stderr.to_ascii_lowercase();
+    if lower.contains("permission denied")
+        || lower.contains("could not resolve")
+        || lower.contains("connection timed out")
+        || lower.contains("connection refused")
+        || lower.contains("no route to host")
+        || lower.contains("operation timed out")
+    {
+        SshSyncStage::ConnectFailed
+    } else {
+        fallback_stage
+    }
+}
+
+fn run_ssh_command(host: &str, remote: &str) -> Result<Vec<u8>, (SshSyncStage, String)> {
+    let mut command = Command::new("ssh");
+    command
+        .args([
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=8",
+            host,
+            remote,
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    hide_console_window(&mut command);
+
+    let output = command.output().map_err(|error| {
+        (
+            SshSyncStage::ConnectFailed,
+            format!("Failed to start ssh: {error}"),
+        )
+    })?;
+    if output.status.success() {
+        return Ok(output.stdout);
     }
 
-    let auth_path = default_codex_home()?.join(AUTH_FILE);
-    let auth = fs::read(&auth_path)
-        .map_err(|error| format!("Failed to read Windows Codex auth.json: {error}"))?;
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let message = if stderr.is_empty() {
+        "SSH command failed.".to_string()
+    } else {
+        stderr
+    };
+    let stage = classify_ssh_failure(&message, SshSyncStage::CopyFailed);
+    Err((stage, message))
+}
+
+fn verify_ssh_auth_hash(host: &str, expected_hash: &str) -> Result<(), String> {
+    let remote = "if command -v sha256sum >/dev/null 2>&1; then sha256sum ~/.codex/auth.json | awk '{print $1}'; elif command -v shasum >/dev/null 2>&1; then shasum -a 256 ~/.codex/auth.json | awk '{print $1}'; elif command -v openssl >/dev/null 2>&1; then openssl dgst -sha256 ~/.codex/auth.json | awk '{print $2}'; else echo __NO_HASH_TOOL__; exit 3; fi";
+    let stdout = run_ssh_command(host, remote).map_err(|(stage, message)| {
+        if stage == SshSyncStage::ConnectFailed {
+            message
+        } else {
+            format!("SSH Codex auth verification failed: {message}")
+        }
+    })?;
+    let actual = String::from_utf8_lossy(&stdout).trim().to_string();
+    if actual == expected_hash {
+        return Ok(());
+    }
+    if actual == "__NO_HASH_TOOL__" {
+        return Err("SSH host has no sha256 tool for auth verification.".to_string());
+    }
+    Err("SSH Codex auth verification failed: remote auth does not match Windows auth.".to_string())
+}
+
+fn sync_default_auth_to_ssh_host(host: &str) -> SshSyncResult {
+    let host = host.trim();
+    if host.is_empty() {
+        return ssh_sync_result(
+            true,
+            Some(false),
+            SshSyncStage::MissingHost,
+            Some("SSH host 이름을 입력해야 합니다.".to_string()),
+        );
+    }
+
+    let auth_path = match default_codex_home() {
+        Ok(home) => home.join(AUTH_FILE),
+        Err(error) => {
+            return ssh_sync_result(true, Some(false), SshSyncStage::CopyFailed, Some(error))
+        }
+    };
+    let auth = match fs::read(&auth_path) {
+        Ok(auth) => auth,
+        Err(error) => {
+            return ssh_sync_result(
+                true,
+                Some(false),
+                SshSyncStage::CopyFailed,
+                Some(format!("Failed to read Windows Codex auth.json: {error}")),
+            )
+        }
+    };
+    let expected_hash = hash_bytes(&auth);
     let mut command = Command::new("ssh");
     command
         .args([
@@ -181,31 +313,69 @@ fn sync_default_auth_to_ssh_host(host: &str) -> Result<(), String> {
         .stderr(Stdio::piped());
     hide_console_window(&mut command);
 
-    let mut child = command
-        .spawn()
-        .map_err(|error| format!("Failed to start ssh auth sync: {error}"))?;
-    let mut stdin = child
-        .stdin
-        .take()
-        .ok_or_else(|| "Failed to open ssh stdin.".to_string())?;
-    stdin
-        .write_all(&auth)
-        .map_err(|error| format!("Failed to write ssh auth sync input: {error}"))?;
+    let mut child = match command.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            return ssh_sync_result(
+                true,
+                Some(false),
+                SshSyncStage::ConnectFailed,
+                Some(format!("Failed to start ssh auth sync: {error}")),
+            )
+        }
+    };
+    let Some(mut stdin) = child.stdin.take() else {
+        return ssh_sync_result(
+            true,
+            Some(false),
+            SshSyncStage::CopyFailed,
+            Some("Failed to open ssh stdin.".to_string()),
+        );
+    };
+    if let Err(error) = stdin.write_all(&auth) {
+        return ssh_sync_result(
+            true,
+            Some(false),
+            SshSyncStage::CopyFailed,
+            Some(format!("Failed to write ssh auth sync input: {error}")),
+        );
+    }
     drop(stdin);
 
-    let output = child
-        .wait_with_output()
-        .map_err(|error| format!("Failed to wait for ssh auth sync: {error}"))?;
-    if output.status.success() {
-        return restart_ssh_codex_runtime(host);
+    let output = match child.wait_with_output() {
+        Ok(output) => output,
+        Err(error) => {
+            return ssh_sync_result(
+                true,
+                Some(false),
+                SshSyncStage::CopyFailed,
+                Some(format!("Failed to wait for ssh auth sync: {error}")),
+            )
+        }
+    };
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let message = if stderr.is_empty() {
+            "SSH Codex auth sync failed.".to_string()
+        } else {
+            format!("SSH Codex auth sync failed: {stderr}")
+        };
+        let stage = classify_ssh_failure(&message, SshSyncStage::CopyFailed);
+        return ssh_sync_result(true, Some(false), stage, Some(message));
     }
 
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    Err(if stderr.is_empty() {
-        "SSH Codex auth sync failed.".to_string()
-    } else {
-        format!("SSH Codex auth sync failed: {stderr}")
-    })
+    if let Err(error) = restart_ssh_codex_runtime(host) {
+        return ssh_sync_result(true, Some(false), SshSyncStage::RestartFailed, Some(error));
+    }
+    if let Err(error) = verify_ssh_auth_hash(host, &expected_hash) {
+        return ssh_sync_result(true, Some(false), SshSyncStage::VerifyFailed, Some(error));
+    }
+    ssh_sync_result(
+        true,
+        Some(true),
+        SshSyncStage::Matched,
+        Some("SSH Codex synced.".to_string()),
+    )
 }
 
 fn restart_ssh_codex_runtime(host: &str) -> Result<(), String> {
@@ -240,7 +410,9 @@ fn restart_ssh_codex_runtime(host: &str) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 pub fn sync_profile_auth_to_default_home(profile: &ProfileRecord) -> Result<(), String> {
-    sync_profile_auth_file(profile, &default_codex_home()?)
+    let default_home = default_codex_home()?;
+    sync_profile_auth_file(profile, &default_home)?;
+    verify_auth_matches_profile(&default_home, profile)
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -249,13 +421,13 @@ pub fn sync_profile_auth_to_default_home(_profile: &ProfileRecord) -> Result<(),
 }
 
 #[cfg(target_os = "windows")]
-pub fn sync_default_auth_to_ssh(host: &str) -> Result<(), String> {
+pub fn sync_default_auth_to_ssh(host: &str) -> SshSyncResult {
     sync_default_auth_to_ssh_host(host)
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn sync_default_auth_to_ssh(_host: &str) -> Result<(), String> {
-    Ok(())
+pub fn sync_default_auth_to_ssh(_host: &str) -> SshSyncResult {
+    ssh_sync_result(false, None, SshSyncStage::Disabled, None)
 }
 
 #[cfg(target_os = "windows")]

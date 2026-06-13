@@ -31,14 +31,17 @@ export function activeProfile(config: AppConfig, profiles: ProfileUsage[]) {
   return profiles.find((profile) => profile.profileId === config.activeProfileId) ?? profiles[0] ?? null;
 }
 
-export function trayMenuState(config: AppConfig, profiles: ProfileUsage[]) {
+export function trayMenuState(config: AppConfig, profiles: ProfileUsage[], lastSwitchError: string | null = null) {
   return {
     activeProfileId: activeProfile(config, profiles)?.profileId ?? null,
     profiles: profiles.map((profile) => ({
       profileId: profile.profileId,
+      account: profile.account,
       fiveHourLeft: profile.fiveHourLeft,
       weeklyLeft: profile.weeklyLeft,
+      error: profile.error,
     })),
+    lastSwitchError,
   };
 }
 

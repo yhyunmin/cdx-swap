@@ -87,7 +87,27 @@ export interface ActionSession {
 export interface SwitchResult {
   activeProfileId: string;
   desktopRestarted: boolean;
+  windows: {
+    ok: boolean;
+    message: string;
+  };
+  desktop: {
+    requested: boolean;
+    ok: boolean | null;
+    restarted: boolean;
+    message: string | null;
+  };
+  ssh: SshSyncResult;
   message: string;
+}
+
+export type SshSyncStage = "disabled" | "missingHost" | "connectFailed" | "copyFailed" | "verifyFailed" | "restartFailed" | "matched";
+
+export interface SshSyncResult {
+  enabled: boolean;
+  ok: boolean | null;
+  stage: SshSyncStage;
+  message: string | null;
 }
 
 export interface UpstreamStatus {
@@ -100,13 +120,16 @@ export interface UpstreamStatus {
 
 export interface TrayProfile {
   profileId: string;
+  account: string;
   fiveHourLeft: number | null;
   weeklyLeft: number | null;
+  error: string | null;
 }
 
 export interface TrayMenuState {
   activeProfileId: string | null;
   profiles: TrayProfile[];
+  lastSwitchError: string | null;
 }
 
 export interface TrayActionPayload {

@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import { useCallback } from "react";
 import { ClaudeUsagePanel } from "../components/ClaudeUsagePanel";
 import { PanelChrome } from "../components/PanelChrome";
@@ -95,6 +95,27 @@ export function TrayPanel(controller: AppController) {
         <div className="notice notice--error">
           <AlertTriangle size={16} />
           <span>{controller.error}</span>
+        </div>
+      )}
+      {controller.desktopStatus?.ok === false && (
+        <div className="notice notice--error">
+          <AlertTriangle size={16} />
+          <span>{controller.desktopStatus.message ?? "Codex Desktop 재시작에 실패했습니다."}</span>
+        </div>
+      )}
+      {controller.sshStatus?.enabled && controller.sshStatus.ok === false && (
+        <div className="notice notice--error">
+          <AlertTriangle size={16} />
+          <span>{controller.sshStatus.message ?? "SSH Codex 동기화에 실패했습니다."}</span>
+          <button className="icon-button icon-button--sm" type="button" onClick={() => void controller.retrySshCodexSync()} aria-label="SSH Codex 다시 동기화" title="SSH 다시 동기화">
+            <RefreshCw size={14} />
+          </button>
+        </div>
+      )}
+      {controller.sshStatus?.enabled && controller.sshStatus.ok === true && (
+        <div className="notice notice--ok">
+          <CheckCircle2 size={16} />
+          <span>{controller.sshStatus.message ?? "SSH Codex synced."}</span>
         </div>
       )}
       {controller.currentAccountStatus && !controller.currentAccountStatus.registered && (

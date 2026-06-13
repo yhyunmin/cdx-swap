@@ -34,9 +34,10 @@ describe("app model", () => {
     expect(trayMenuState({ ...defaultConfig, activeProfileId: "work" }, profiles)).toEqual({
       activeProfileId: "work",
       profiles: [
-        { profileId: "main", fiveHourLeft: 35, weeklyLeft: 61 },
-        { profileId: "work", fiveHourLeft: 70, weeklyLeft: 81 },
+        { profileId: "main", account: "main@example.com", fiveHourLeft: 35, weeklyLeft: 61, error: null },
+        { profileId: "work", account: "work@example.com", fiveHourLeft: 70, weeklyLeft: 81, error: null },
       ],
+      lastSwitchError: null,
     });
   });
 
