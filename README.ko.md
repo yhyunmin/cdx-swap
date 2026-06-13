@@ -58,7 +58,7 @@ portable zip입니다.
 
 ## Windows 설치와 업데이트
 
-- 릴리즈는 custom WinUI `setup.exe`, MSI `update.msi`, portable zip을 함께 배포합니다.
+- 릴리즈는 custom lightweight Windows `setup.exe`, MSI `update.msi`, portable zip을 함께 배포합니다.
 - setup exe는 Tauri MSI payload를 내부에 포함하고 기본 NSIS/Wix wizard가 아니라 cdx-swap 전용 설치 UI를 엽니다.
 - 버전 업데이트 또는 debug 용도로 MSI artifact를 유지합니다. MSI `upgradeCode`를
   `tauri.conf.json`에 고정해서 다음 버전도 같은 앱의 업그레이드로 인식하게 했습니다.

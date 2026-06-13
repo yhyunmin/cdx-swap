@@ -1,44 +1,21 @@
-using Microsoft.UI.Windowing;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media.Imaging;
-using Windows.Graphics;
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Input;
 
 namespace CdxSwap.Setup;
 
-public sealed partial class MainWindow : Window
+public partial class MainWindow : Window
 {
     private readonly InstallEngine installEngine = new();
-    private string? lastLogPath;
+    private string lastLogPath = string.Empty;
 
     public MainWindow()
     {
         InitializeComponent();
-        ConfigureWindow();
         ShowReady();
-    }
-
-    private void ConfigureWindow()
-    {
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(DragRegion);
-
-        var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(windowHandle);
-        var appWindow = AppWindow.GetFromWindowId(windowId);
-        appWindow.Resize(new SizeInt32(560, 510));
-
-        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico");
-        if (File.Exists(iconPath))
-        {
-            appWindow.SetIcon(iconPath);
-        }
-
-        var imagePath = Path.Combine(AppContext.BaseDirectory, "Assets", "app-icon.png");
-        if (File.Exists(imagePath))
-        {
-            AppIconImage.Source = new BitmapImage(new Uri(imagePath));
-        }
     }
 
     private void ShowReady()
@@ -51,12 +28,12 @@ public sealed partial class MainWindow : Window
         OpenLogButton.Visibility = Visibility.Collapsed;
         LaunchAfterInstallToggle.Visibility = Visibility.Visible;
         InstallProgress.Visibility = Visibility.Collapsed;
-        InstallProgress.IsActive = false;
+        InstallProgress.IsIndeterminate = false;
         CloseButton.IsEnabled = true;
 
         VersionText.Text = $"Version {BuildMetadata.Version}";
         TitleText.Text = "Ready to install";
-        DescriptionText.Text = "Install the modern tray app for switching Codex profiles and checking usage.";
+        DescriptionText.Text = "Install the tray app for switching Codex profiles and checking usage.";
         StatusText.Text = "cdx-swap will be installed for the current Windows user.";
         LogPathText.Text = string.Empty;
     }
@@ -69,7 +46,7 @@ public sealed partial class MainWindow : Window
         OpenLogButton.Visibility = Visibility.Collapsed;
         LaunchAfterInstallToggle.Visibility = Visibility.Collapsed;
         InstallProgress.Visibility = Visibility.Visible;
-        InstallProgress.IsActive = true;
+        InstallProgress.IsIndeterminate = true;
         CloseButton.IsEnabled = false;
 
         TitleText.Text = "Installing";
@@ -87,7 +64,7 @@ public sealed partial class MainWindow : Window
         OpenLogButton.Visibility = Visibility.Collapsed;
         LaunchButton.Visibility = Visibility.Visible;
         InstallProgress.Visibility = Visibility.Collapsed;
-        InstallProgress.IsActive = false;
+        InstallProgress.IsIndeterminate = false;
         CloseButton.IsEnabled = true;
 
         TitleText.Text = "Installed";
@@ -107,18 +84,18 @@ public sealed partial class MainWindow : Window
         LaunchButton.Visibility = Visibility.Collapsed;
         LaunchAfterInstallToggle.Visibility = Visibility.Collapsed;
         InstallProgress.Visibility = Visibility.Collapsed;
-        InstallProgress.IsActive = false;
+        InstallProgress.IsIndeterminate = false;
         CloseButton.IsEnabled = true;
 
         TitleText.Text = "Installation failed";
         DescriptionText.Text = "Windows Installer returned an error. The log path is kept for diagnosis.";
         StatusText.Text = $"Exit code {error.ExitCode}: {error.Message}";
-        LogPathText.Text = lastLogPath ?? string.Empty;
+        LogPathText.Text = lastLogPath;
     }
 
     private async void InstallButton_Click(object sender, RoutedEventArgs e)
     {
-        if ((string?)InstallButton.Content == "Close")
+        if ((string)InstallButton.Content == "Close")
         {
             Close();
             return;
@@ -142,7 +119,7 @@ public sealed partial class MainWindow : Window
             lastLogPath = result.LogPath;
             ShowSuccess();
 
-            if (LaunchAfterInstallToggle.IsOn)
+            if (LaunchAfterInstallToggle.IsChecked == true)
             {
                 await LaunchInstalledAppAsync();
             }
@@ -193,6 +170,14 @@ public sealed partial class MainWindow : Window
         if (CloseButton.IsEnabled)
         {
             Close();
+        }
+    }
+
+    private void DragRegion_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ButtonState == MouseButtonState.Pressed)
+        {
+            DragMove();
         }
     }
 }

@@ -140,6 +140,11 @@ fn auth_file_matches(current_home: &Path, profile_home: &Path) -> bool {
     matches!((current, profile), (Ok(current), Ok(profile)) if current == profile)
 }
 
+fn auth_fingerprint(profile: &ProfileRecord) -> Option<String> {
+    let auth = fs::read(PathBuf::from(&profile.home_path).join(AUTH_FILE)).ok()?;
+    Some(hash_bytes(&auth))
+}
+
 fn verify_auth_matches_profile(current_home: &Path, profile: &ProfileRecord) -> Result<(), String> {
     let profile_home = PathBuf::from(&profile.home_path);
     if auth_file_matches(current_home, &profile_home) {
@@ -387,7 +392,7 @@ fn restart_ssh_codex_runtime(host: &str) -> Result<(), String> {
             "-o",
             "ConnectTimeout=8",
             host,
-            "if command -v pkill >/dev/null 2>&1; then pkill -TERM -f 'codex app-server' 2>/dev/null || true; pkill -TERM -f 'codex.*proxy' 2>/dev/null || true; pkill -TERM -f '/usr/local/bin/codex.*app-server' 2>/dev/null || true; fi",
+            "if command -v pkill >/dev/null 2>&1; then pkill -TERM -f '[c]odex app-server' 2>/dev/null || true; pkill -TERM -f '[c]odex.*proxy' 2>/dev/null || true; pkill -TERM -f '/usr/local/bin/[c]odex.*app-server' 2>/dev/null || true; fi; exit 0",
         ])
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
@@ -625,6 +630,28 @@ pub fn delete_profile(profile: &ProfileRecord) -> Result<(), String> {
     fs::remove_dir_all(&target).map_err(|error| format!("Failed to delete profile: {error}"))
 }
 
+fn copy_dir_all(source: &Path, target: &Path) -> Result<(), String> {
+    fs::create_dir_all(target)
+        .map_err(|error| format!("Failed to create profile target: {error}"))?;
+    for entry in
+        fs::read_dir(source).map_err(|error| format!("Failed to read profile source: {error}"))?
+    {
+        let entry =
+            entry.map_err(|error| format!("Failed to read profile source entry: {error}"))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|error| format!("Failed to read profile source file type: {error}"))?;
+        let target_path = target.join(entry.file_name());
+        if file_type.is_dir() {
+            copy_dir_all(&entry.path(), &target_path)?;
+        } else if file_type.is_file() {
+            fs::copy(entry.path(), target_path)
+                .map_err(|error| format!("Failed to copy profile file: {error}"))?;
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn ensure_profile(profile_id: String) -> Result<ProfileRecord, String> {
     let id = validate_profile_id(&profile_id)?;
@@ -671,19 +698,17 @@ pub fn rename_profile(
     let modern_root = modern_root
         .canonicalize()
         .map_err(|error| format!("Failed to resolve profiles root: {error}"))?;
-    let allowed = delete_target_allowed(&profile, &source, &modern_root, &home);
-    if !allowed {
-        return Err(format!(
-            "Refusing to rename unexpected profile path: {}",
-            source.display()
-        ));
-    }
-
     let target = modern_root.join(&next_id);
     if target.exists() {
         return Err(format!("Profile path already exists: {}", target.display()));
     }
-    fs::rename(&source, &target).map_err(|error| format!("Failed to rename profile: {error}"))?;
+    let allowed = delete_target_allowed(&profile, &source, &modern_root, &home);
+    if allowed {
+        fs::rename(&source, &target)
+            .map_err(|error| format!("Failed to rename profile: {error}"))?;
+    } else {
+        copy_dir_all(&source, &target)?;
+    }
     Ok(ProfileRecord {
         id: next_id,
         home_path: target.to_string_lossy().to_string(),
@@ -692,11 +717,60 @@ pub fn rename_profile(
     })
 }
 
+fn duplicate_usage_row(profile: &ProfileRecord, canonical_profile_id: &str) -> ProfileUsage {
+    ProfileUsage {
+        profile_id: profile.id.clone(),
+        account: profile
+            .auth
+            .as_ref()
+            .and_then(|auth| auth.email.clone())
+            .unwrap_or_else(|| "unknown".to_string()),
+        plan: profile.auth.as_ref().and_then(|auth| auth.plan.clone()),
+        five_hour_left: None,
+        five_hour_reset: None,
+        weekly_left: None,
+        weekly_reset: None,
+        error: Some(format!(
+            "Profile {} uses the same Codex auth as {}. Login again to separate this profile.",
+            profile.id, canonical_profile_id
+        )),
+    }
+}
+
 #[tauri::command]
-pub async fn list_profile_usage() -> Result<Vec<ProfileUsage>, String> {
+pub async fn list_profile_usage(
+    active_profile_id: Option<String>,
+) -> Result<Vec<ProfileUsage>, String> {
     let profiles = list_profiles()?;
+    let active_profile_id = active_profile_id.map(|id| id.trim().to_string());
+    let fingerprints = profiles
+        .iter()
+        .filter_map(|profile| {
+            auth_fingerprint(profile).map(|fingerprint| (profile.id.clone(), fingerprint))
+        })
+        .collect::<HashMap<_, _>>();
+    let mut canonical_by_fingerprint = HashMap::<String, String>::new();
+    for profile in &profiles {
+        let Some(fingerprint) = fingerprints.get(&profile.id) else {
+            continue;
+        };
+        if canonical_by_fingerprint.get(fingerprint).is_none()
+            || active_profile_id.as_deref() == Some(profile.id.as_str())
+        {
+            canonical_by_fingerprint.insert(fingerprint.clone(), profile.id.clone());
+        }
+    }
+
     let mut rows = Vec::with_capacity(profiles.len());
     for profile in profiles {
+        if let Some(fingerprint) = fingerprints.get(&profile.id) {
+            if let Some(canonical_profile_id) = canonical_by_fingerprint.get(fingerprint) {
+                if canonical_profile_id != &profile.id {
+                    rows.push(duplicate_usage_row(&profile, canonical_profile_id));
+                    continue;
+                }
+            }
+        }
         rows.push(fetch_usage(&profile).await);
     }
     Ok(rows)

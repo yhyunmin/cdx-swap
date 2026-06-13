@@ -6,7 +6,9 @@
 
 ## 결정
 
-설치 경험은 C# WinUI 3 bootstrapper로 만든다. Tauri가 만든 MSI는 내부 payload로 넣고, 사용자는 하나의 setup exe를 다운로드해 오프라인으로 설치한다. 메인 앱은 Tauri/Rust로 유지한다.
+설치 경험은 C# bootstrapper로 만든다. Tauri가 만든 MSI는 내부 payload로 넣고, 사용자는 하나의 setup exe를 다운로드해 오프라인으로 설치한다. 메인 앱은 Tauri/Rust로 유지한다.
+
+초기 구현은 WinUI 3 self-contained 방식이었지만 setup exe가 지나치게 커져 `0005-lightweight-wpf-installer.md`에서 WPF bootstrapper로 대체했다.
 
 ## 대안
 

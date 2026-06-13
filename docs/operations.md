@@ -1,6 +1,6 @@
 # 운영 절차
 
-개발 전 의존성은 Node 22, Rust stable, Tauri 2 CLI, Windows 빌드 대상이다. Windows 릴리즈 검증은 Windows runner가 기준이며, installer 빌드는 .NET 8 SDK와 Windows App SDK NuGet restore가 필요하다.
+개발 전 의존성은 Node 22, Rust stable, Tauri 2 CLI, Windows 빌드 대상이다. Windows 릴리즈 검증은 Windows runner가 기준이며, installer 빌드는 .NET SDK와 .NET Framework 4.8 targeting pack이 필요하다.
 
 기본 확인 명령은 다음 순서로 실행한다.
 
@@ -17,8 +17,8 @@ Linux에서 일반 `cargo check --manifest-path src-tauri/Cargo.toml`는 GTK 개
 
 GitHub 릴리즈는 `v*` 태그 push가 Windows artifact 빌드를 트리거한다. 공개 artifact는 custom setup exe와 portable zip이며, update/debug 용도로 MSI도 함께 업로드한다. 각 release asset 이름에는 태그에서 `v`를 뺀 버전이 들어간다.
 
-Windows 패키징은 `scripts/package-windows.ps1`가 단일 출처다. 이 스크립트는 Tauri가 만든 MSI를 찾아 `installer/CdxSwap.Setup`에 `PayloadMsiPath`로 넘기고, WinUI 3 setup exe를 publish한 뒤 `cdx-swap_<version>_x64-setup.exe`로 복사한다. `src-tauri/tauri.conf.json`의 bundle target은 MSI만 유지하므로 기본 NSIS wizard가 release asset으로 섞이면 안 된다.
+Windows 패키징은 `scripts/package-windows.ps1`가 단일 출처다. 이 스크립트는 Tauri가 만든 MSI를 찾아 `installer/CdxSwap.Setup`에 `PayloadMsiPath`로 넘기고, WPF setup exe를 build한 뒤 `cdx-swap_<version>_x64-setup.exe`로 복사한다. `src-tauri/tauri.conf.json`의 bundle target은 MSI만 유지하므로 기본 NSIS wizard가 release asset으로 섞이면 안 된다.
 
-설치 프로그램 수동 검수는 Windows에서 수행한다. setup exe가 기본 wizard가 아니라 custom WinUI 창으로 열리는지, 네트워크를 끊은 뒤에도 설치되는지, 실패를 강제로 만들었을 때 exit code와 log path가 표시되는지, 성공 후 Launch가 `cdx-swap.exe`를 실행하는지 확인한다.
+설치 프로그램 수동 검수는 Windows에서 수행한다. setup exe가 기본 wizard가 아니라 custom WPF 창으로 열리는지, 네트워크를 끊은 뒤에도 설치되는지, 실패를 강제로 만들었을 때 exit code와 log path가 표시되는지, 성공 후 Launch가 `cdx-swap.exe`를 실행하는지 확인한다.
 
 계정 전환 수동 검수는 Windows에서 수행한다. 서로 다른 두 프로필로 Login한 뒤 패널 전환, tray 전환, Run 전환을 각각 시도하고, 전환 후 각 프로필 행이 자기 email을 유지하는지 확인한다. SSH 옵션이 켜져 있으면 `ssh <host>` 안의 `~/.codex/auth.json`이 Windows 기본 auth와 맞는지 확인한다.

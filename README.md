@@ -41,9 +41,9 @@ npm run tauri:dev
 
 ## Windows Install and Updates
 
-- Releases publish a custom WinUI `setup.exe`, an MSI `update.msi`, and a
+- Releases publish a custom lightweight Windows `setup.exe`, an MSI `update.msi`, and a
   portable zip.
-- The setup exe embeds the Tauri MSI payload and opens the modern cdx-swap
+- The setup exe embeds the Tauri MSI payload and opens the cdx-swap
   installer UI, not the default NSIS/Wix wizard.
 - Use the MSI artifact for update/debug workflows. The MSI `upgradeCode` is
   pinned in `tauri.conf.json` so future versions are treated as the same app

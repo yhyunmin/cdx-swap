@@ -117,9 +117,6 @@ export const UsageTable = memo(function UsageTable({
                     disabled={!canSwitch}
                     aria-label={canSwitch ? `${profile.profileId} 계정 전환` : `${profile.profileId} 현재 계정`}
                   >
-                    <span className="profile-avatar profile-avatar--sm" aria-hidden="true">
-                      {profile.profileId.slice(0, 1).toUpperCase()}
-                    </span>
                     <div className="usage-copy">
                       <span className="usage-title">
                         <strong>{profile.profileId}</strong>

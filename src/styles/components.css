@@ -234,7 +234,7 @@ button:disabled {
 
 .usage-switch-target {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   min-width: 0;
   padding: 0;
@@ -248,26 +248,6 @@ button:disabled {
 .usage-switch-target:disabled {
   cursor: default;
   opacity: 1;
-}
-
-.profile-avatar {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  flex: 0 0 auto;
-  color: var(--color-primary-strong);
-  border: 1px solid rgba(243, 63, 98, 0.16);
-  border-radius: var(--radius-control);
-  background: #fff;
-  font-size: var(--font-small);
-  font-weight: var(--weight-medium);
-}
-
-.profile-avatar--sm {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-inner);
 }
 
 .usage-title {
@@ -390,6 +370,13 @@ button:disabled {
 
 .profile-login-panel .section-title {
   min-height: 36px;
+}
+
+.dialog-help {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-small);
+  line-height: 1.5;
 }
 
 input {

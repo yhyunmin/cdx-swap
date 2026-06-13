@@ -2,9 +2,10 @@
 
 The public Windows setup artifact is built from `installer/CdxSwap.Setup`.
 
-The project is an unpackaged, self-contained WinUI 3 app. CI publishes it as a
-single EXE and embeds the Tauri-generated MSI as an assembly resource, so the
-downloaded installer works offline after download.
+The project is a lightweight WPF bootstrapper targeting the Windows built-in
+.NET Framework runtime. It embeds the Tauri-generated MSI as an assembly
+resource, so the downloaded installer works offline after download without the
+large WinUI self-contained runtime payload.
 
 Local Windows build:
 

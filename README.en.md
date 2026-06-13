@@ -58,7 +58,7 @@ The Claude provider is currently a settings slot only. v1 does not query Claude 
 
 ## Windows Install and Updates
 
-- Releases publish a custom WinUI `setup.exe`, an MSI `update.msi`, and a portable zip.
+- Releases publish a custom lightweight Windows `setup.exe`, an MSI `update.msi`, and a portable zip.
 - The setup exe embeds the Tauri MSI payload and opens the cdx-swap installer UI
   instead of the default NSIS/Wix wizard.
 - Use the MSI artifact for update/debug workflows. The MSI `upgradeCode` is
