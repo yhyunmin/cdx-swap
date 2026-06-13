@@ -34,7 +34,7 @@ Linux / WSL에서 Windows용 개발 portable exe만 만들 때:
 ./scripts/package-windows-cross.sh
 ```
 
-cross-build 결과는 개발 확인용이며 공식 배포물은 GitHub Release의 NSIS installer, MSI update installer,
+cross-build 결과는 개발 확인용이며 공식 배포물은 GitHub Release의 custom setup exe, MSI update installer,
 portable zip입니다.
 
 ## 하는 일
@@ -58,8 +58,9 @@ portable zip입니다.
 
 ## Windows 설치와 업데이트
 
-- 릴리즈는 NSIS `setup.exe`와 MSI `update.msi`를 함께 배포합니다.
-- 버전업데이트는 MSI artifact를 기준으로 사용합니다. MSI `upgradeCode`를
+- 릴리즈는 custom WinUI `setup.exe`, MSI `update.msi`, portable zip을 함께 배포합니다.
+- setup exe는 Tauri MSI payload를 내부에 포함하고 기본 NSIS/Wix wizard가 아니라 cdx-swap 전용 설치 UI를 엽니다.
+- 버전 업데이트 또는 debug 용도로 MSI artifact를 유지합니다. MSI `upgradeCode`를
   `tauri.conf.json`에 고정해서 다음 버전도 같은 앱의 업그레이드로 인식하게 했습니다.
 - Windows bundler 설정에서 downgrade 설치는 차단합니다.
 - 브라우저 다운로드 후 SmartScreen 차단을 없애려면 신뢰된 Windows code signing

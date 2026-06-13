@@ -34,8 +34,8 @@ Build a development-only Windows portable exe from Linux / WSL:
 ./scripts/package-windows-cross.sh
 ```
 
-The cross-build output is for development checks. Official distribution uses the GitHub Release NSIS
-installer, MSI update installer, and portable zip.
+The cross-build output is for development checks. Official distribution uses the GitHub Release custom
+setup exe, MSI update installer, and portable zip.
 
 ## What It Does
 
@@ -58,10 +58,12 @@ The Claude provider is currently a settings slot only. v1 does not query Claude 
 
 ## Windows Install and Updates
 
-- Releases publish both an NSIS `setup.exe` and an MSI `update.msi` artifact.
-- Use the MSI artifact for stable version-to-version updates. The MSI
-  `upgradeCode` is pinned in `tauri.conf.json` so future versions are treated as
-  the same app instead of duplicate installs.
+- Releases publish a custom WinUI `setup.exe`, an MSI `update.msi`, and a portable zip.
+- The setup exe embeds the Tauri MSI payload and opens the cdx-swap installer UI
+  instead of the default NSIS/Wix wizard.
+- Use the MSI artifact for update/debug workflows. The MSI `upgradeCode` is
+  pinned in `tauri.conf.json` so future versions are treated as the same app
+  instead of duplicate installs.
 - Downgrades are blocked by the Windows bundler config.
 - Browser download SmartScreen warnings require trusted Windows code signing
   reputation. GitHub Actions imports `WINDOWS_CERTIFICATE`,
