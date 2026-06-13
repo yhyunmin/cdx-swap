@@ -1,6 +1,6 @@
 {
   "name": "cdx-swap",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Windows-first tray app for Codex profile usage and safe Codex Desktop restarts.",

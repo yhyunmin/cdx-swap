@@ -1,6 +1,10 @@
 node_modules/
 dist/
 Desktop/
+release-artifacts/
+portable/
+installer/**/bin/
+installer/**/obj/
 src-tauri/target/
 src-tauri/gen/
 .dryforge/

@@ -33,6 +33,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
       - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
@@ -75,21 +78,17 @@ jobs:
       - run: npm run tauri -- build --features tauri/custom-protocol
       - name: Prepare Windows artifacts
         shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+          WINDOWS_TIMESTAMP_URL: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
-          $out = "release-artifacts"
-          New-Item -ItemType Directory -Force -Path $out | Out-Null
-
-          $setup = Get-ChildItem "src-tauri\target\release\bundle\nsis" -Filter "*.exe" | Select-Object -First 1
-          Copy-Item $setup.FullName "$out\cdx-swap_${version}_x64-setup.exe"
-
-          $msi = Get-ChildItem "src-tauri\target\release\bundle\msi" -Filter "*.msi" | Select-Object -First 1
-          Copy-Item $msi.FullName "$out\cdx-swap_${version}_x64-update.msi"
-
-          $portable = "portable\cdx-swap"
-          New-Item -ItemType Directory -Force -Path $portable | Out-Null
-          Copy-Item "src-tauri\target\release\cdx-swap.exe" "$portable\cdx-swap.exe"
-          Compress-Archive -Path "portable\cdx-swap" -DestinationPath "$out\cdx-swap_${version}_x64-portable.zip" -Force
+          .\scripts\package-windows.ps1 `
+            -Version $version `
+            -OutputDir "release-artifacts" `
+            -SkipNodeInstall `
+            -SkipTests `
+            -SkipAppBuild
       - uses: actions/upload-artifact@v4
         with:
           name: cdx-swap-windows

@@ -1,0 +1,14 @@
+<Application
+    x:Class="CdxSwap.Setup.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <SolidColorBrush x:Key="AccentBrush" Color="#FFED3E68" />
+            <SolidColorBrush x:Key="TextBrush" Color="#FF2F2F35" />
+            <SolidColorBrush x:Key="MutedTextBrush" Color="#FF72727D" />
+            <SolidColorBrush x:Key="PanelBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="SoftAccentBrush" Color="#FFFFF0F3" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

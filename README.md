@@ -41,10 +41,13 @@ npm run tauri:dev
 
 ## Windows Install and Updates
 
-- Releases publish both an NSIS `setup.exe` and an MSI `update.msi` artifact.
-- Use the MSI artifact for stable version-to-version updates. The MSI
-  `upgradeCode` is pinned in `tauri.conf.json` so future versions are treated as
-  the same app instead of duplicate installs.
+- Releases publish a custom WinUI `setup.exe`, an MSI `update.msi`, and a
+  portable zip.
+- The setup exe embeds the Tauri MSI payload and opens the modern cdx-swap
+  installer UI, not the default NSIS/Wix wizard.
+- Use the MSI artifact for update/debug workflows. The MSI `upgradeCode` is
+  pinned in `tauri.conf.json` so future versions are treated as the same app
+  instead of duplicate installs.
 - Downgrades are blocked by the Windows bundler config.
 - Browser download SmartScreen warnings require trusted Windows code signing
   reputation. GitHub Actions imports `WINDOWS_CERTIFICATE`,
