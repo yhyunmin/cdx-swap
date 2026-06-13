@@ -189,6 +189,7 @@ export function TrayPanel(controller: AppController) {
             }}
           >
             <h3 id="profile-login-title">프로필 로그인</h3>
+            <p className="dialog-help">새 Codex 프로필은 이름을 정한 뒤 로그인합니다.</p>
             <label className="dialog-field">
               <span>프로필 이름</span>
               <input

@@ -1,14 +1,31 @@
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Win32;
 
 namespace CdxSwap.Setup;
 
-internal sealed record InstallResult(int ExitCode, string LogPath);
+internal sealed class InstallResult
+{
+    public InstallResult(int exitCode, string logPath)
+    {
+        ExitCode = exitCode;
+        LogPath = logPath;
+    }
+
+    public int ExitCode { get; }
+
+    public string LogPath { get; }
+}
 
 internal sealed class InstallFailedException : Exception
 {
-    public InstallFailedException(int exitCode, string? logPath, string message, Exception? innerException = null)
+    public InstallFailedException(int exitCode, string logPath, string message, Exception innerException = null)
         : base(message, innerException)
     {
         ExitCode = exitCode;
@@ -17,7 +34,7 @@ internal sealed class InstallFailedException : Exception
 
     public int ExitCode { get; }
 
-    public string? LogPath { get; }
+    public string LogPath { get; }
 }
 
 internal sealed class InstallEngine
@@ -32,7 +49,7 @@ internal sealed class InstallEngine
 
         try
         {
-            var msiPath = await ExtractPayloadAsync(tempDirectory, cancellationToken);
+            var msiPath = ExtractPayload(tempDirectory);
 
             progress.Report("Installing cdx-swap");
             var exitCode = await RunMsiAsync(msiPath, logPath, cancellationToken);
@@ -61,7 +78,7 @@ internal sealed class InstallEngine
     public Task LaunchInstalledAppAsync()
     {
         var appPath = FindInstalledAppPath();
-        if (appPath is null)
+        if (appPath == null)
         {
             throw new FileNotFoundException("Installed cdx-swap executable was not found.");
         }
@@ -98,7 +115,7 @@ internal sealed class InstallEngine
         return Path.Combine(Path.GetTempPath(), $"cdx-swap-install-{timestamp}.log");
     }
 
-    private static async Task<string> ExtractPayloadAsync(string tempDirectory, CancellationToken cancellationToken)
+    private static string ExtractPayload(string tempDirectory)
     {
         var assembly = Assembly.GetExecutingAssembly();
         var resourceName = assembly
@@ -106,47 +123,71 @@ internal sealed class InstallEngine
             .FirstOrDefault(name => string.Equals(name, BuildMetadata.PayloadResourceName, StringComparison.Ordinal))
             ?? assembly.GetManifestResourceNames().FirstOrDefault(name => name.EndsWith(".msi", StringComparison.OrdinalIgnoreCase));
 
-        if (resourceName is null)
+        if (resourceName == null)
         {
             throw new InvalidOperationException("The setup payload MSI is missing from this installer build.");
         }
 
-        await using var resource = assembly.GetManifestResourceStream(resourceName)
-            ?? throw new InvalidOperationException($"Unable to open embedded payload resource '{resourceName}'.");
-
         var msiPath = Path.Combine(tempDirectory, "cdx-swap.msi");
-        await using var file = File.Create(msiPath);
-        await resource.CopyToAsync(file, cancellationToken);
+        using (var resource = assembly.GetManifestResourceStream(resourceName))
+        {
+            if (resource == null)
+            {
+                throw new InvalidOperationException($"Unable to open embedded payload resource '{resourceName}'.");
+            }
+
+            using (var file = File.Create(msiPath))
+            {
+                resource.CopyTo(file);
+            }
+        }
+
         return msiPath;
     }
 
-    private static async Task<int> RunMsiAsync(string msiPath, string logPath, CancellationToken cancellationToken)
+    private static Task<int> RunMsiAsync(string msiPath, string logPath, CancellationToken cancellationToken)
     {
-        using var process = Process.Start(new ProcessStartInfo
+        return Task.Run(() =>
         {
-            FileName = "msiexec.exe",
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        }.WithArguments(
-            "/i",
-            msiPath,
-            "/qn",
-            "/norestart",
-            "ALLUSERS=2",
-            "MSIINSTALLPERUSER=1",
-            "/L*v",
-            logPath));
+            using (var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = "msiexec.exe",
+                Arguments = string.Join(" ", new[]
+                {
+                    "/i",
+                    Quote(msiPath),
+                    "/qn",
+                    "/norestart",
+                    "ALLUSERS=2",
+                    "MSIINSTALLPERUSER=1",
+                    "/L*v",
+                    Quote(logPath),
+                }),
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            }))
+            {
+                if (process == null)
+                {
+                    throw new InvalidOperationException("Unable to start msiexec.exe.");
+                }
 
-        if (process is null)
-        {
-            throw new InvalidOperationException("Unable to start msiexec.exe.");
-        }
+                while (!process.WaitForExit(250))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
 
-        await process.WaitForExitAsync(cancellationToken);
-        return process.ExitCode;
+                return process.ExitCode;
+            }
+        }, cancellationToken);
     }
 
-    private static string? FindInstalledAppPath()
+    private static string Quote(string value)
+    {
+        return $"\"{value.Replace("\"", "\\\"")}\"";
+    }
+
+    private static string FindInstalledAppPath()
     {
         foreach (var candidate in GetKnownInstallCandidates())
         {
@@ -171,32 +212,36 @@ internal sealed class InstallEngine
         yield return Path.Combine(programFilesX86, "cdx-swap", AppExecutableName);
     }
 
-    private static string? FindInstalledAppPathInRegistry()
+    private static string FindInstalledAppPathInRegistry()
     {
         foreach (var root in GetUninstallRoots())
         {
-            using var key = root;
-            if (key is null)
+            using (var key = root)
             {
-                continue;
-            }
-
-            foreach (var subKeyName in key.GetSubKeyNames())
-            {
-                using var subKey = key.OpenSubKey(subKeyName);
-                var displayName = subKey?.GetValue("DisplayName") as string;
-                if (!string.Equals(displayName, "cdx-swap", StringComparison.OrdinalIgnoreCase))
+                if (key == null)
                 {
                     continue;
                 }
 
-                var installLocation = subKey?.GetValue("InstallLocation") as string;
-                if (!string.IsNullOrWhiteSpace(installLocation))
+                foreach (var subKeyName in key.GetSubKeyNames())
                 {
-                    var candidate = Path.Combine(installLocation, AppExecutableName);
-                    if (File.Exists(candidate))
+                    using (var subKey = key.OpenSubKey(subKeyName))
                     {
-                        return candidate;
+                        var displayName = subKey?.GetValue("DisplayName") as string;
+                        if (!string.Equals(displayName, "cdx-swap", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        var installLocation = subKey?.GetValue("InstallLocation") as string;
+                        if (!string.IsNullOrWhiteSpace(installLocation))
+                        {
+                            var candidate = Path.Combine(installLocation, AppExecutableName);
+                            if (File.Exists(candidate))
+                            {
+                                return candidate;
+                            }
+                        }
                     }
                 }
             }
@@ -205,14 +250,14 @@ internal sealed class InstallEngine
         return null;
     }
 
-    private static IEnumerable<RegistryKey?> GetUninstallRoots()
+    private static IEnumerable<RegistryKey> GetUninstallRoots()
     {
         yield return Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall");
 
-        using var localMachine64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+        var localMachine64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
         yield return localMachine64.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall");
 
-        using var localMachine32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32);
+        var localMachine32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32);
         yield return localMachine32.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall");
     }
 
@@ -229,18 +274,5 @@ internal sealed class InstallEngine
         {
             // Temp payload cleanup is best-effort; the MSI log remains available separately.
         }
-    }
-}
-
-internal static class ProcessStartInfoExtensions
-{
-    public static ProcessStartInfo WithArguments(this ProcessStartInfo startInfo, params string[] arguments)
-    {
-        foreach (var argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-
-        return startInfo;
     }
 }

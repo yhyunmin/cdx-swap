@@ -122,7 +122,7 @@ export function useAppController() {
       try {
         const shouldFetchClaude = configRef.current.claudeEnabled;
         const [rows, currentStatus] = await Promise.all([
-          native.listProfileUsage(),
+          native.listProfileUsage(configRef.current.activeProfileId),
           native.getCurrentAccountStatus().catch(() => null),
         ]);
         const nextClaudeUsage = shouldFetchClaude

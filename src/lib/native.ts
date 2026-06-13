@@ -20,7 +20,7 @@ import type {
 interface NativeApi {
   getConfig(): Promise<AppConfig>;
   saveConfig(config: AppConfig): Promise<AppConfig>;
-  listProfileUsage(): Promise<ProfileUsage[]>;
+  listProfileUsage(activeProfileId?: string | null): Promise<ProfileUsage[]>;
   getCurrentAccountStatus(): Promise<CurrentAccountStatus | null>;
   ensureProfile(profileId: string): Promise<ProfileRecord>;
   renameProfile(profileId: string, nextProfileId: string): Promise<ProfileRecord>;
@@ -163,7 +163,7 @@ const browserApi: NativeApi = {
 const tauriApi: NativeApi = {
   getConfig: () => invoke("get_app_config"),
   saveConfig: (config) => invoke("save_app_config", { config }),
-  listProfileUsage: () => invoke("list_profile_usage"),
+  listProfileUsage: (activeProfileId) => invoke("list_profile_usage", { activeProfileId }),
   getCurrentAccountStatus: () => invoke("get_current_account_status"),
   ensureProfile: (profileId) => invoke("ensure_profile", { profileId }),
   renameProfile: (profileId, nextProfileId) => invoke("rename_profile", { profileId, nextProfileId }),

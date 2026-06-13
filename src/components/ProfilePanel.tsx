@@ -10,7 +10,7 @@ export const ProfilePanel = memo(function ProfilePanel({ loading, onOpenLoginDia
   return (
     <section className="panel profile-login-panel" aria-label="프로필">
       <div className="section-title">
-        <h2>프로필</h2>
+        <h2>프로필 추가</h2>
         <button
           className="icon-button tooltip-trigger"
           type="button"
@@ -22,7 +22,6 @@ export const ProfilePanel = memo(function ProfilePanel({ loading, onOpenLoginDia
           {loading ? <LogIn size={16} /> : <Plus size={16} />}
         </button>
       </div>
-      <p className="empty">새 Codex 프로필은 이름을 정한 뒤 로그인합니다.</p>
     </section>
   );
 });

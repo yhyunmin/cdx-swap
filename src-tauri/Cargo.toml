@@ -1,6 +1,6 @@
 [package]
 name = "cdx-swap"
-version = "0.4.0"
+version = "0.4.1"
 description = "Windows-first Codex usage tray app"
 authors = ["cdx-swap contributors"]
 edition = "2021"

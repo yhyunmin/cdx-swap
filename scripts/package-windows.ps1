@@ -103,18 +103,15 @@ try {
   $msi = Get-RequiredFile "src-tauri\target\release\bundle\msi" "*.msi"
   $appExe = Get-RequiredFile "src-tauri\target\release" "cdx-swap.exe"
   $setupProject = Join-Path $Root "installer\CdxSwap.Setup\CdxSwap.Setup.csproj"
-  $publishDir = Join-Path $Root "installer\CdxSwap.Setup\bin\$Configuration\net8.0-windows10.0.19041.0\win-x64\publish"
+  $buildDir = Join-Path $Root "installer\CdxSwap.Setup\bin\x64\$Configuration\net48"
 
-  dotnet publish $setupProject `
+  dotnet build $setupProject `
     -c $Configuration `
-    -r win-x64 `
-    --self-contained true `
+    -p:Platform=x64 `
     "/p:AppVersion=$Version" `
-    "/p:PayloadMsiPath=$($msi.FullName)" `
-    "/p:PublishSingleFile=true" `
-    "/p:WindowsAppSDKSelfContained=true"
+    "/p:PayloadMsiPath=$($msi.FullName)"
 
-  $setupExe = Get-RequiredFile $publishDir "CdxSwap.Setup.exe"
+  $setupExe = Get-RequiredFile $buildDir "CdxSwap.Setup.exe"
 
   New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
   $setupOut = Join-Path $OutputDir "cdx-swap_${Version}_x64-setup.exe"

@@ -12,6 +12,6 @@ React 패널은 사용량 목록을 중심 화면으로 둔다. 저장된 프로
 
 외부 경계는 네 가지다. Windows 파일시스템의 Codex home, Codex CLI 프로세스, Codex Desktop 실행 파일 또는 시작 메뉴 앱, SSH 대상 host다. 이 경계들은 모두 실패할 수 있고, 실패 이유는 사용자에게 숨기지 않는다.
 
-Windows 설치 경험은 메인 앱과 분리된 `installer/CdxSwap.Setup` WinUI 3 bootstrapper가 맡는다. Tauri는 MSI payload만 만들고, bootstrapper는 그 MSI를 embedded resource로 포함해 단일 setup exe로 배포된다. 설치 중에는 payload를 임시 개인 디렉터리에 추출하고 `msiexec /qn /norestart`로 실행하며, 실패 시 MSI exit code와 `%TEMP%` 아래 로그 경로를 UI에 표시한다.
+Windows 설치 경험은 메인 앱과 분리된 `installer/CdxSwap.Setup` WPF bootstrapper가 맡는다. Tauri는 MSI payload만 만들고, bootstrapper는 그 MSI를 embedded resource로 포함해 단일 setup exe로 배포된다. 설치 중에는 payload를 임시 개인 디렉터리에 추출하고 `msiexec /qn /norestart`로 실행하며, 실패 시 MSI exit code와 `%TEMP%` 아래 로그 경로를 UI에 표시한다.
 
 공개 릴리즈의 primary 설치 파일은 `cdx-swap_<version>_x64-setup.exe` 커스텀 installer다. Tauri 기본 NSIS wizard는 더 이상 생성하지 않는다. MSI는 update/debug 용도로 유지하고, portable zip은 설치가 싫은 사용자를 위해 계속 제공한다.
