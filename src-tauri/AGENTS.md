@@ -11,4 +11,3 @@ SSH 동기화는 token 원문을 출력하지 않는다. 로컬 auth bytes의 sh
 Desktop 실행 파일 탐색은 CLI 경로를 거부해야 한다. `bin\codex.exe`나 WindowsApps CLI shim이 발견되면 Desktop 실행 파일로 쓰지 않는다.
 
 Windows 전용 기능은 Windows target 검사로 확인한다. Linux 일반 cargo check가 GTK 개발 패키지 부족으로 실패할 수 있으므로, 제품 판단에는 Windows target check 또는 GitHub Windows build를 사용한다.
-

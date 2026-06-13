@@ -9,4 +9,3 @@
 tray 메뉴는 React 상태가 만든 `TrayMenuState`를 Rust로 전달해서 재구성한다. 메뉴 클릭은 `tray-action` 이벤트로 다시 React에 들어오고, React는 패널 클릭과 같은 계정 전환 경로를 사용한다. tray 메뉴 자체는 풍부한 tooltip을 안정적으로 제공하지 못하므로 최근 실패 이유는 비활성 메뉴 항목이나 패널 notice로 노출한다.
 
 외부 경계는 네 가지다. Windows 파일시스템의 Codex home, Codex CLI 프로세스, Codex Desktop 실행 파일 또는 시작 메뉴 앱, SSH 대상 host다. 이 경계들은 모두 실패할 수 있고, 실패 이유는 사용자에게 숨기지 않는다.
-

@@ -18,4 +18,3 @@ Linux에서 일반 `cargo check --manifest-path src-tauri/Cargo.toml`는 GTK 개
 GitHub 릴리즈는 `v*` 태그 push가 Windows artifact 빌드를 트리거한다. 공개 artifact는 setup exe, update msi, portable zip이며, 각 release asset 이름에는 태그에서 `v`를 뺀 버전이 들어간다.
 
 계정 전환 수동 검수는 Windows에서 수행한다. 서로 다른 두 프로필로 Login한 뒤 패널 전환, tray 전환, Run 전환을 각각 시도하고, 전환 후 각 프로필 행이 자기 email을 유지하는지 확인한다. SSH 옵션이 켜져 있으면 `ssh <host>` 안의 `~/.codex/auth.json`이 Windows 기본 auth와 맞는지 확인한다.
-

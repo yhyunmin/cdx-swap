@@ -55,7 +55,7 @@ pub(super) fn build_context_menu(
         let item = MenuItem::with_id(
             app,
             LAST_ERROR_ID,
-            format!("최근 전환 실패: {short_error}"),
+            format!("최근 경고: {short_error}"),
             false,
             None::<&str>,
         )?;
@@ -70,7 +70,20 @@ pub(super) fn build_context_menu(
             let item = MenuItem::with_id(
                 app,
                 switch_item_id(&profile.profile_id),
-                if is_active {
+                if let Some(error) = profile
+                    .error
+                    .as_ref()
+                    .filter(|error| !error.trim().is_empty())
+                {
+                    format!(
+                        "{}{}  5H {} / Week {}  오류: {}",
+                        profile.profile_id,
+                        if is_active { " ✓" } else { "" },
+                        quota_label(profile.five_hour_left),
+                        quota_label(profile.weekly_left),
+                        truncate_label(error, 42)
+                    )
+                } else if is_active {
                     format!(
                         "{} ✓  5H {} / Week {}",
                         profile.profile_id,

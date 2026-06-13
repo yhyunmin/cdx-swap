@@ -9,4 +9,3 @@
 증상: Linux 환경에서 `cargo check`가 pango/gdk/glib `pkg-config` 오류로 실패한다. 원인: Linux Tauri 빌드가 GTK 개발 패키지를 요구하는데 현재 WSL 환경에 해당 도구가 없다. 대응: 제품 배포 대상인 Windows 검사에는 `cargo check --target x86_64-pc-windows-msvc`를 사용하고, GitHub Actions의 `windows-latest` 빌드를 최종 기준으로 삼는다.
 
 증상: tray icon 주변에 검은 줄이 보일 수 있다. 원인: app/window icon을 tray에 그대로 쓰면 작은 크기에서 투명 픽셀이나 ICO scaling이 깨질 수 있다. 대응: tray에는 작은 크기 전용 RGBA 이미지를 사용하고, app/installer icon과 독립적으로 확인한다.
-

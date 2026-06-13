@@ -11,4 +11,3 @@
 tray 메뉴 상태는 `trayMenuState`에서 만든다. 새 필드를 추가하면 Rust `TrayMenuState`, TypeScript type, browser preview fallback, 관련 테스트를 같이 바꾼다.
 
 테스트는 적어도 버튼 wiring, tray action, 모델 변환을 확인해야 한다. UI 문구가 바뀔 때는 접근성 label이 유지되는지 같이 확인한다.
-
