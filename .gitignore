@@ -8,5 +8,6 @@ installer/**/obj/
 src-tauri/target/
 src-tauri/gen/
 .dryforge/
+/docs/
 *.log
 *.tar.gz

@@ -8,22 +8,6 @@
 .
 ├── AGENTS.md -> Codex 작업 기준
 ├── CLAUDE.md -> Claude 작업 기준
-├── docs/
-│   ├── architecture.md -> 앱 구성과 계정 전환 흐름
-│   ├── business-rules.md -> 프로필, 전환, 사용량의 제품 규칙
-│   ├── security.md -> 토큰 파일과 원격 복사 보안 기준
-│   ├── standards.md -> 변경 전후 반드시 지킬 개발 기준
-│   ├── engineering-notes.md -> 구현 중 놓치기 쉬운 함정
-│   ├── operations.md -> 개발, 검증, 릴리즈 절차
-│   ├── contracts.md -> Tauri 명령과 tray 이벤트 계약
-│   └── tracking/
-│       ├── status.md -> 현재 완료 범위와 남은 일
-│       ├── findings.md -> 아직 닫히지 않은 문제
-│       └── decisions/
-│           ├── index.md -> 결정 기록 목록
-│           ├── 0001-windows-tauri-tray.md -> Windows-first Tauri 앱 결정
-│           ├── 0002-switch-partial-success.md -> 전환과 SSH 동기화 분리 결정
-│           └── 0003-custom-installer-bootstrapper.md -> 커스텀 설치 앱 결정
 ├── src/
 │   └── AGENTS.md -> React 패널과 프론트 상태 경계
 └── src-tauri/
@@ -39,10 +23,10 @@
 
 ## 작업 전 확인
 
-- 계정 전환이나 사용량을 건드리기 전에는 `docs/business-rules.md`의 프로필 스냅샷 규칙과 `src-tauri/AGENTS.md`의 파일 경계 규칙을 먼저 확인한다.
-- SSH/WSL 동기화를 건드리기 전에는 `docs/security.md`의 원격 복사 기준과 `docs/engineering-notes.md`의 SSH 검증 함정을 확인한다.
+- 계정 전환이나 사용량을 건드리기 전에는 프로필 스냅샷 규칙과 `src-tauri/AGENTS.md`의 파일 경계 규칙을 먼저 확인한다.
+- SSH/WSL 동기화를 건드리기 전에는 원격 복사 기준과 SSH 검증 함정을 확인한다.
 - React 패널을 바꾸기 전에는 `src/AGENTS.md`의 상태 소유권과 표시 규칙을 확인한다.
-- 릴리즈를 만들기 전에는 `docs/operations.md`의 버전, 태그, 검증 순서를 따른다.
+- 릴리즈를 만들기 전에는 버전, 태그, 검증 순서를 확인한다.
 
 ## 즉시 사용자 확인이 필요한 상황
 
